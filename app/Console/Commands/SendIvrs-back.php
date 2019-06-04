@@ -1,5 +1,6 @@
 <?php
 namespace App\Console\Commands;
+use App\ivrs\tbl_campania;
 use App\ivrs\tbl_script;
 use PAMI\Message\Action\QueueLogAction;
 use App\ivrs\tbl_carga as carga;
@@ -66,437 +67,422 @@ class SendIvrs extends Command
         );
 
         $fecha_actual = Carbon::now();
-        echo $fecha_actual;
-        if ($fecha_actual>date('Y-m-d ').'08:00:00' && $fecha_actual<date('Y-m-d ').'20:00:00') {
-            try {
-                //INICIO CRON LLAMADAS IVR
+        $atmCampanas=tbl_campania::where('id_cliente',11)->where('estado',1)->get(['id_campania']);
+        $idCampanas=Array();
+        foreach ($atmCampanas as $atmCampana){
+            array_push($idCampanas,$atmCampana->id_campania);
+        }
+        //SOLO PARA ATM
+        $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->whereIn('id_campania',$idCampanas)->get();
+        $id_carga_calendarizado = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('calendarizado', 1)->whereIn('id_campania',$idCampanas)->get();
 
-                //VERIFICA CALENDARIZACION DE IVRS
-                $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('calendarizado', 1)->get();
-                //var_dump($id_carga);
+        $sabado=date("w", strtotime(date('Y-m-d')));
+        if ($sabado==6){
+            $horaInicio='09:00:00';
+            $horaFin='13:00:00';
+        }else{
+            $horaInicio='08:00:00';
+            $horaFin='18:00:00';
+        }
+        echo "\n Sabado es 6 : ".$sabado." - ".$horaInicio." - ".$horaFin."\n";
 
-                foreach ($id_carga as $k) {
-                    $fecha_calendarizada = Carbon::parse($k->fecha_inicio_envio);
-                    if ($fecha_actual > $fecha_calendarizada) {
-                        $k->ejecucion = 1;
-                        $k->save();
-
-                        echo "\n" . $k->id_carga . " - " . $fecha_actual . " - ";
-                        echo "es mayor";
-                        echo "\n" . $k->fecha_inicio_envio;
-                    } else {
-                        $k->ejecucion = 0;
-                        $k->save();
-
-                        echo "\n" . $k->id_carga . " - " . $fecha_actual . " - ";
-                        echo "es menor";
-                        echo "\n" . $k->fecha_inicio_envio;
-                    }
+        $finalizar=1;
+        if (count($id_carga)>0){
+            echo "\nFecha inicio: ".$fecha_actual." - ".date('Y-m-d ').$horaInicio."\n";
+            echo "\nFecha fin: ".$fecha_actual." - ".date('Y-m-d ').$horaFin."\n";
+            if (strtotime($fecha_actual)>strtotime(date('Y-m-d ').$horaInicio) && strtotime($fecha_actual)<strtotime(date('Y-m-d ').$horaFin)) {
+                echo "\n entro al if: ".$fecha_actual;
+                $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->whereIn('id_campania',$idCampanas)->get();
+                enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOptions);
+            }
+            if(strtotime($fecha_actual)>strtotime(date('Y-m-d').$horaFin)){
+                echo "\n entro al if para finalizar la campaña: ".$fecha_actual."\n\n";
+                $id_cargas = $id_carga;
+                foreach ($id_cargas as $id_carga){
+                    echo $id_carga;
+                    $id_carga->estado=0;
+                    $id_carga->save();
                 }
-                //FIN VERIFICA CALENDARIZACION DE IVRS
+            }
+        }
 
-                sleep(1);
-                $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->get();
+        //PARA CUALQUIER MARCA
+        $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->whereNotIn('id_campania',$idCampanas)->get();
+        $id_carga_calendarizado = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('calendarizado', 1)->whereNotIn('id_campania',$idCampanas)->get();
+        $horaInicio='08:00:00';
+        $horaFin='20:00:00';
+        $finalizar=0;
+        echo "\nid_carga diferentes ATM: ".count($id_carga)."\n";
+        if (count($id_carga)>0){
+            echo "\nentro al if\n";
+            if (strtotime($fecha_actual)>strtotime(date('Y-m-d ').$horaInicio) && strtotime($fecha_actual)<strtotime(date('Y-m-d ').$horaFin)) {
+                echo "\nentro al 2do if\n";
+                $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->whereNotIn('id_campania',$idCampanas)->get();
+                echo "\nid carga no atm: ".$id_carga."\n";
+                enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOptions);
+            }
+        }
 
-                $canales = canales::first();
+        //SOLO PARA ATM INICIO
+        //Actualizo e indexo las gestiones ATM
+        $id_cargas=id_carga::where('estado',0)->whereNotNull('id_campania_sis_gest')->where('estado_indexado',0)->get();
 
-                echo "\nid carga activos" . $id_carga->count();
-                echo "\ncanales: " . $canales->canales . "\n";
-                echo "\ncampañas play: " . $id_carga->count();
+        foreach ($id_cargas as $idc){
+            if ($idc->campaniaIvr->clienteIvr->id_cliente==11){
+                if (count($idc)>0){
+                    //inicio actualizo como indexado las cuentas que nunca se llamaron para que no los ingrese en el sistema de gestión
+                    carga::where('id_carga',$idc->id_carga)->whereNull('id_gestion_original')->where('estado_indexado',0)->update(['estado_indexado' => 1]);
+                    //fin actualizo ...
 
-                //Balanceo los canales sobrantes sobre los demas ivrs activos y ejecutandose
-                if ($id_carga->count() > 1) {
-                    $total_canales = 0;
-                    foreach ($id_carga as $k) {
-                        echo "\nid_carga " . $k->id_carga;
-                        $total_canales = $total_canales + $k->canales;
-                        if ($total_canales > $canales->canales) {
-                            $k->canales = 0;
-                            $k->save();
-                        }
-                    }
-
-                    echo "\ntotal canales de los id_carga: " . $total_canales;
-                    echo "\ntotal canales disponibles para ivrs: " . $canales->canales;
-                    echo "\ntotal id_carga: " . $id_carga->count();
-
-
-                    //comentar solo para peru desde ecuador
-                    foreach ($id_carga as $k) {
-                        if (intval($k->canales) > 0 && intval($k->canales) < 10) {
-                            $k->canales = 0;
-                            $k->save();
-                        }
-                    }
-                    //comentar solo para peru desde ecuador
-
-                    if ($total_canales == $canales->canales) {
-                        $total_canales = $total_canales - 1;
-                    }
-
-                    if ($total_canales < $canales->canales) {
-                        echo "\nentro al if total canales <= canales";
-                        $total_canales = intval($canales->canales);
-
-                        //sirve para dividir los canales para todas las campañas activas -> sirve para Perú desde ecuador
-                        //$acanales=intval(floor($canales->canales/$id_carga->count()));
-
-                        //comentar solo para peru desde ecuador
-                        //valida que el total de canales a distribuir sea igual o mayor a 10 canales por campaña
-                        $total_campanias = $id_carga->count();
-                        do {
-                            $acanales = intval(floor($canales->canales / $total_campanias));
-                            $total_campanias = $total_campanias - 1;
-                            echo "\nacanales: " . $acanales;
-                        } while ($acanales < 10);
-                        //comentar solo para peru desde ecuador
-
-                        foreach ($id_carga as $k) {
-                            if ($acanales <= $total_canales) {
-                                echo "\nid carga por recibir canales: " . $k->id_carga;
-                                echo " - canales a recibir : " . $acanales;
-                                $k->canales = $acanales;
-                                $k->save();
-                            }
-                            $total_canales = $total_canales - $acanales;
-                            echo "\ntotal_canales: " . $total_canales;
-                        }
-
-                        //Si sobran canales le sumo a la primera campaña de la lista
-                        if ($total_canales > 0) {
-                            $id_final = $id_carga->first();
-                            $id_final->canales = $id_final->canales + $total_canales;
-                            $id_final->save();
-                        }
-                    }
-
-                } elseif ($id_carga->count() == 1) {
-                    echo "\nentro al else";
-                    $icarga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->first();
-                    $icarga->canales = $canales->canales;
-                    $icarga->save();
-                }
-                //Fin balanceo de canales
-                if ($id_carga->count() > 0) {
-                    for ($j = 1; $j <= 2; $j++) {
-                        $maximo = 1;
-                        //
-                        echo "\nj:" . $j;
-                        foreach ($id_carga as $k) {
-                            echo "\nid_carga: " . $k->id_carga . "\n";
-                            $cantidad_s = (int)$k->canales;
-                            echo "\ncantidad de canales de la campaña : " . $cantidad_s;
-                            $carga = carga::where('id_carga', $k->id_carga)->where('estado', 1)->limit($cantidad_s)->get();
-
-                            echo "\ntotal clientes: " . count($carga) . "\n";
-                            if (count($carga) > 0) {
-                                $count = 0;
-                                foreach ($carga as $key) {
-                                    $count++;
-                                    //$actualizar=carga::where('estado',0)->first();
-                                    if ($canales->canales > 30) {
-                                        //mayor a 30 canales envia cada medio segundo
-                                        usleep(500000);
-                                    } else {
-                                        //menos a 30 canales envia cada segundo
-                                        sleep(1);
-                                    }
-
-                                    //$script=scripts::where('id_script',$key['id_script'])->first();
-                                    //echo $maximo." - ".$key->id." - ".$script->script." -- \n";
-                                    //$maximo++;
-                                    $script = scripts::where('id_script', $key['id_script'])->first();
-                                    echo "\n" . $script->script;
-                                    echo "\nCount: " . $count;
-
-
-                                    $pamiClient = new PamiClient($pamiClientOptions);
-                                    $pamiClient->open();
-                                    if ($key['tiposcript'] == 1) {
-                                        //INGRESO DE LA GESTION
-                                        if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
-                                            $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
-                                        }
-                                        //FIN INGRESO DE LA GESTION
-                                        $channel = 'Local/' . trim($key['telefono']) . '@from-internal';
-                                        $id_var = scripts::where('id_script', $key['id_script'])->first()->id_var;
-                                        $originateMsg = new OriginateAction($channel);
-                                        $originateMsg->setExtension('6001');
-                                        $originateMsg->setContext('app-ivrplay2');
-                                        $originateMsg->setTimeout('30000');
-                                        $originateMsg->setCallerId('1000');
-                                        $originateMsg->setVariable('VAR', $id_var);
-                                        $originateMsg->setVariable('ID_CARGA', $key->id_carga);
-                                        $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $key->cargaIvr->id_campania_sis_gest . ',' . $key->cedula);
-                                        $originateMsg->setVariable('CEDULA', $key->cedula);
-                                        $originateMsg->setAsync(true);
-                                        $originateMsg->setActionID(trim($key['telefono']) . '-' . $id_var);
-                                        $response = $pamiClient->send($originateMsg);
-                                        if ($response->isSuccess()) {
-                                            $respuesta = "Ivr estatico Enviado Correctamente, espere unos segundos.!\n";
-                                            echo $respuesta;
-                                        } else {
-                                            $respuesta = "Envío Fallido!\n";
-                                        }
-                                        echo "\nRespuesta: " . $respuesta . " - " . $key['tiposcript'] . " - SCRIPT: " . $script;
-                                        //Log::info("\nCount: ".$count." - Respuesta: ".$respuesta." - ".$key['tiposcript']." - SCRIPT: ".$script);
-                                    }
-                                    if ($key['tiposcript'] == 2) {
-                                        //Seleccionamos el script dinamico creado por el usuario
-                                        $script = mb_strtolower(scripts::where('id_script', $key['id_script'])->first()->script);
-                                        //Buscamos las variables dentro de este formato {nombre_variable} y las almacenamos en la variable coincidencias
-                                        if (preg_match_all('/{([a-z_a-z_0-9])*}/', $script, $coincidencias, PREG_OFFSET_CAPTURE, 0)) {
-                                            //echo "HAY ".count($coincidencias[0])." COINCIDENCIAS";
-                                        } else {
-                                            //echo "NO HAY COINCIDENCIA";
-                                        }
-                                        //creo una array var para almacenar los campos de la base de datos
-                                        $var = array();
-                                        for ($i = 0; $i < count($coincidencias[0]); $i++) {
-                                            $var[$i] = $coincidencias[0][$i][0];
-                                            $var[$i] = substr($var[$i], 1);
-                                            $var[$i] = substr($var[$i], 0, -1);
-                                            //reemplazo el nombre de las variables con la palabra estatica variable nombre_variable al ser un demo
-                                            $script = str_replace($coincidencias[0][$i][0], $key[$var[$i]], $script);
-                                        }
-                                        //INGRESO DE LA GESTION
-                                        if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
-                                            $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
-                                        }
-                                        //FIN INGRESO DE LA GESTION
-                                        $channel = 'Local/' . trim($key['telefono']) . '@from-internal';
-                                        $originateMsg = new OriginateAction($channel);
-                                        $originateMsg->setExtension('1001');
-                                        $originateMsg->setContext('@from-internal');
-                                        $originateMsg->setPriority('');
-                                        $originateMsg->setApplication('PicoTTS');
-                                        $originateMsg->setData('"' . $script . '",any,es-ES');
-                                        //$originateMsg->setApplication('agi');
-                                        //$originateMsg->setData('googletts.agi,"'.$script.'",es');
-                                        $originateMsg->setTimeout('30000');
-                                        $originateMsg->setCallerId('1000');
-                                        $originateMsg->setVariable('ID_CARGA', $key->id_carga);
-                                        $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $key->cargaIvr->id_campania_sis_gest . ',' . $key->cedula );
-                                        $originateMsg->setVariable('CEDULA', $key->cedula);
-                                        $originateMsg->setAsync(true);
-                                        $originateMsg->setActionID(trim($key['telefono']));
-                                        $response = $pamiClient->send($originateMsg);
-                                        if ($response->isSuccess()) {
-                                            $respuesta = "Ivr dinámico Enviado Correctamente!\n";
-                                            echo $respuesta;
-                                        } else {
-                                            $respuesta = "Envío Fallido!\n";
-                                        }
-                                        echo "\nRespuesta: " . $respuesta . " - " . $key['tiposcript'] . " - SCRIPT: " . $script;
-                                        //Log::info("\nCount: ".$count." - Respuesta: ".$respuesta." - ".$key['tiposcript']." - SCRIPT: ".$script);
-                                    }
-                                    $pamiClient->close();
-
-                                    $maximo++;
-                                    $key->estado = 0;
-                                    //INGRESO DE LA GESTION
-                                    if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
-                                        $key->id_gestion_original=$id_gestion;
-                                    }
-                                    //FIN INGRESO DE LA GESTION
-                                    $key->save();
-                                    $idcarga = $key->id_carga;
-
-                                }
-                                //Log::info("Envio un ivr de id_carga:".$idcarga);
-                            }
-                        }
-                        if ($canales->canales > 30) {
-                            //mayor a 30 canales espera 10 segundos
-                            sleep(10);
-                        } else {
-                            //menos a 30 canales espera 20 segundos
-                            sleep(20);
-                        }
-                    }
-                }
-                //FIN CRON LLAMADAS IVR
-
-                //SOLO PARA ATM INICIO
-                //Actualizo e indexo las gestiones ATM
-                $id_cargas=id_carga::where('estado',0)->whereNotNull('id_campania_sis_gest')->where('estado_indexado',0)->get();
-
-                foreach ($id_cargas as $idc){
-                    if ($idc->campaniaIvr->clienteIvr->id_cliente==11){
-                        if (count($idc)>0){
-                            echo "\nantes del foreach indexar gestiones ".date('Y-m-d H:i:s');
-                            //$cdr = cdr::where('id_carga',$k->id_carga)->where('id_campania_sis_gest',$k->id_campania_sis_gest)->where('disposition','ANSWERED')->get();
-                            //$query="call cobefec_reportes.sp_ivr_indexar(".$idc->id_carga.");";
-                            $query="select i.id, i.cedula, i.telefono, i.cuenta, i.ESTADO, i.Fecha, i.Duracion, i.Eventos, i.valor_estado, i.id_gestion_original, i.id_carga,i.estado_indexado
+                    echo "\nantes del foreach indexar gestiones ".date('Y-m-d H:i:s')."\n";
+                    //$cdr = cdr::where('id_carga',$k->id_carga)->where('id_campania_sis_gest',$k->id_campania_sis_gest)->where('disposition','ANSWERED')->get();
+                    $query="call cobefec_reportes.sp_ivr_indexar(".$idc->id_carga.");";
+                    DB::connection('cdr')->select($query);
+                    $query="select i.id, i.cedula, i.telefono, i.cuenta, i.ESTADO, i.Fecha, i.Duracion, i.Eventos, i.valor_estado, i.id_gestion_original, i.id_carga,i.estado_indexado
 from cobefec_reportes.tbl_ivr_index i 
 where 
 i.Fecha=(select max(Fecha) from cobefec_reportes.tbl_ivr_index where if(i.cuenta is null,cuenta is null,cuenta=i.cuenta) and telefono=i.telefono)
-and i.estado_indexado=0 and id_carga=".$idc->id_carga."
-;";
-                            try{
-                                $reporte = DB::connection('cdr')->select($query);
-                            } catch (Exception $e) {
-                                return $e->getMessage() . "\n";
-                            }
-                            $reporte = json_decode(json_encode($reporte), true);
-                            echo "\nempieza a actualizar la base ".date('Y-m-d H:i:s');
-                            foreach ($reporte as $key)
-                            {
-                                subirGestion2($key['id_gestion_original'],$key['ESTADO']);
-                                $idCargaG=carga::find($key['id']);
-                                $idCargaG->estado_indexado=1;
-                                $idCargaG->save();
-                            }
-                            echo "\nfinaliza la actualizacion de la base ".date('Y-m-d H:i:s');
-                            echo "\nid_carga: ".$idc->id_carga;
-                            echo " - total llamadas contestadas a indexar: ".count($reporte);
-                        }
+and i.estado_indexado=0 and id_carga=".$idc->id_carga.";";
+                    try{
+                        $reporte = DB::connection('cdr')->select($query);
+                    } catch (Exception $e) {
+                        return $e->getMessage() . "\n";
                     }
-                }
-
-                //INDEXO TODA LA CAMPAÑA
-                $id_cargas=id_carga::where('estado',0)->whereNotNull('id_campania_sis_gest')->where('estado_indexado',0)->where('porcentaje_indexado',100)->get();
-                foreach ($id_cargas as $idc){
-                    if ($idc->campaniaIvr->clienteIvr->id_cliente==11){
-                        if (count($idc)>0){
-                            echo "\n\ningresa al metodo de indexacion por campana :".$idc->id_campania_sis_gest.": ".date('Y-m-d H:i:s');
-
-                            subirGestionesPorCampana($idc->id_campania_sis_gest,$idc->id_carga);
-
-                            echo "\nsale del metodo de indexacion por campana ".date('Y-m-d H:i:s');
-                        }
+                    $reporte = json_decode(json_encode($reporte), true);
+                    echo "\nempieza a actualizar la base ".date('Y-m-d H:i:s');
+                    foreach ($reporte as $key)
+                    {
+                        subirGestion2($key['id_gestion_original'],$key['ESTADO']);
+                        $idCargaG=carga::find($key['id']);
+                        $idCargaG->estado_indexado=1;
+                        $idCargaG->save();
                     }
+                    echo "\nfinaliza la actualizacion de la base ".date('Y-m-d H:i:s');
+                    echo "\nid_carga: ".$idc->id_carga." - total llamadas contestadas a indexar: ".count($reporte);
                 }
-                //FIN INDEXO TODA LA CAMPAÑA
-                //FIN SOLO PARA ATM
+            }
+        }
 
-                //INICIO CRON PARA REPORTES TOTAL DE LLAMADAS VS CONTESTADOS
-                $id_carga = id_carga::where('estado', 0)->where('total_carga')->get();
+        //INDEXO TODA LA CAMPAÑA
+        echo "\nEmpiezo a indexar";
+        $id_cargas=id_carga::where('estado',0)->whereNotNull('id_campania_sis_gest')->where('estado_indexado',0)->where('porcentaje_indexado',100)->get();
+        echo "\nId carga ".$id_cargas;
+        foreach ($id_cargas as $idc){
+            if ($idc->campaniaIvr->clienteIvr->id_cliente==11){
+                if (count($idc)>0){
+                    echo "\n\ningresa al metodo de indexacion por campana :".$idc->id_campania_sis_gest.": ".date('Y-m-d H:i:s');
 
-                //Actualizo el total de teléfonos cargados
-                foreach ($id_carga as $k) {
-                    $carga = carga::where('id_carga', $k->id_carga)->count();
-                    $k->total_carga = $carga;
-                    $k->save();
-                    echo "\nid_carga: " . $k->id_carga;
-                    echo "\ntotal carga: " . $carga;
+                    subirGestionesPorCampana($idc->id_campania_sis_gest,$idc->id_carga);
+
+                    echo "\nsale del metodo de indexacion por campana ".date('Y-m-d H:i:s');
                 }
-                //Actualizo el total de llamadas contestadas desde la tabla cdr (ANSWERED)
-                $id_carga = id_carga::where('estado', 0)->whereNull('total_llamadas')->get();
-                echo "\nantes del foreach total llamadas";
-                foreach ($id_carga as $k) {
-                    $cdr = cdr::where('id_carga', $k->id_carga)->where('disposition', 'ANSWERED')->count();
-                    echo "\nid_carga: " . $k->id_carga;
-                    echo " - total llamadas: " . $cdr;
-                    $k->total_llamadas = $cdr;
-                    $k->save();
-                }
+            }
+        }
+        //FIN INDEXO TODA LA CAMPAÑA
+        //FIN SOLO PARA ATM
 
-                //FIN CRON PARA REPORTES TOTAL DE LLAMADAS VS CONTESTADOS
+        //INICIO CRON PARA REPORTES TOTAL DE LLAMADAS VS CONTESTADOS
+        $id_carga = id_carga::where('estado', 0)->whereNull('total_carga')->get();
+        echo "\nId carga: ".$id_carga;
+        //Actualizo el total de teléfonos cargados
+        foreach ($id_carga as $k) {
+            $carga = carga::where('id_carga', $k->id_carga)->count();
+            $k->total_carga = $carga;
+            $k->save();
+            echo "\nid_carga: " . $k->id_carga;
+            echo "\ntotal carga: " . $carga;
+        }
+        //Actualizo el total de llamadas contestadas desde la tabla cdr (ANSWERED)
+        $id_carga = id_carga::where('estado', 0)->whereNull('total_llamadas')->get();
+        echo "\nantes del foreach total llamadas";
+        foreach ($id_carga as $k) {
+            $cdr = cdr::where('id_carga', $k->id_carga)->where('disposition', 'ANSWERED')->count();
+            echo "\nid_carga: " . $k->id_carga;
+            echo " - total llamadas: " . $cdr;
+            $k->total_llamadas = $cdr;
+            $k->save();
+        }
+        //FIN CRON PARA REPORTES TOTAL DE LLAMADAS VS CONTESTADOS
+    }
+}
 
+function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOptions){
+    $fecha_actual = Carbon::now();
+    //VERIFICA CALENDARIZACION DE IVRS
 
-                /*
-                $cantidad_s=0;
-                $cantidad_m=$cantidad_s*2;
-                $carga=carga::where('estado',1)->limit($cantidad_m)->get();
-                $maximo=0;
-                if (count($carga)>0){
-                    foreach ($carga as $k) {
-                    //$actualizar=carga::where('estado',0)->first();
-                    if ($maximo==$cantidad_s){
-                        $maximo=0;
-                        sleep(25);
-                    }
+    foreach ($id_carga_calendarizado as $k) {
+        echo '\nCampana calendarizada: '.$k->id_carga;
+        $fecha_calendarizada = Carbon::parse($k->fecha_inicio_envio);
+        if ($fecha_actual > $fecha_calendarizada) {
+            $k->ejecucion = 1;
+            $k->save();
 
+            echo "\n" . $k->id_carga . " - " . $fecha_actual . " - ";
+            echo "es mayor";
+            echo "\n" . $k->fecha_inicio_envio;
+        } else {
+            $k->ejecucion = 0;
+            $k->save();
 
-                    sleep(1);
-                    $script=scripts::where('id_script',$k['id_script'])->first();
+            echo "\n" . $k->id_carga . " - " . $fecha_actual . " - ";
+            echo "es menor";
+            echo "\n" . $k->fecha_inicio_envio;
+        }
+    }
+    //FIN VERIFICA CALENDARIZACION DE IVRS
 
-                    $pamiClient = new PamiClient($pamiClientOptions);
-                    $pamiClient->open();
-                    if ($k['tiposcript']== 1) {
-                        $channel = 'Local/'.$k['telefono'].'@from-internal';
-                        $id_var=scripts::where('id_script',$k['id_script'])->first()->id_var;
-                        $originateMsg = new OriginateAction($channel);
-                        $originateMsg->setExtension('6001');
-                        $originateMsg->setContext('app-ivrplay2');
-                        $originateMsg->setTimeout('20000');
-                        $originateMsg->setCallerId('1000');
-                        $originateMsg->setVariable('VAR', $id_var);
-                        $originateMsg->setVariable('ID_CARGA',$k->id_carga);
-                        $originateMsg->setAsync(true);
-                        $originateMsg->setActionID($k['telefono'] . '-' .$id_var);
-                        $response = $pamiClient->send($originateMsg);
-                        if ($response->isSuccess()) {
-                            $respuesta = "Enviado Correctamente, espere unos segundos.!\n";
+    sleep(1);
+
+    $canales = canales::first();
+
+    echo "\nid carga activos" . $id_carga->count();
+    echo "\ncanales: " . $canales->canales . "\n";
+    echo "\ncampañas play: " . $id_carga->count();
+
+    //$id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->get();
+    balanceoCanales($canales);
+
+    if ($id_carga->count() > 0) {
+        for ($j = 1; $j <= 2; $j++) {
+            $maximo = 1;
+            //
+            echo "\nj:" . $j;
+            foreach ($id_carga as $k) {
+                echo "\nid_carga: " . $k->id_carga . "\n";
+                $cantidad_s = (int)$k->canales;
+                echo "\ncantidad de canales de la campaña : " . $cantidad_s;
+                $carga = carga::where('id_carga', $k->id_carga)->where('estado', 1)->limit($cantidad_s)->get();
+                echo "\ncarga tiene un total de: ".count($carga);
+
+                echo "\ntotal clientes: " . count($carga) . "\n";
+                if (count($carga) > 0) {
+                    $count = 0;
+                    foreach ($carga as $key) {
+                        $count++;
+                        //$actualizar=carga::where('estado',0)->first();
+                        if ($canales->canales > 30) {
+                            //mayor a 30 canales envia cada medio segundo
+                            usleep(500000);
                         } else {
-                            $respuesta = "Envío Fallido!\n";
+                            //menos a 30 canales envia cada segundo
+                            sleep(1);
                         }
-                        Log::info($k['tiposcript']." - SCRIPT: ".$script);
-                    }
-                    if ($k['tiposcript']== 2) {
-                        //Seleccionamos el script dinamico creado por el usuario
-                        $script=mb_strtolower(scripts::where('id_script',$k['id_script'])->first()->script);
-                        //Buscamos las variables dentro de este formato {nombre_variable} y las almacenamos en la variable coincidencias
-                        if (preg_match_all('/{([a-z_a-z_0-9])*}/',$script,$coincidencias,PREG_OFFSET_CAPTURE, 0))
-                        {
-                            //echo "HAY ".count($coincidencias[0])." COINCIDENCIAS";
-                        }else
-                        {
-                            //echo "NO HAY COINCIDENCIA";
-                        }
-                        //creo una array var para almacenar los campos de la base de datos
-                        $var=array();
-                        for ($i=0;$i<count($coincidencias[0]);$i++){
-                            $var[$i]=$coincidencias[0][$i][0];
-                            $var[$i]=substr($var[$i],1);
-                            $var[$i]=substr($var[$i],0,-1);
-                            //reemplazo el nombre de las variables con la palabra estatica variable nombre_variable al ser un demo
-                            $script=str_replace($coincidencias[0][$i][0],$k[$var[$i]], $script);
-                        }
-                        $channel = 'Local/' . $k['telefono'] . '@from-internal';
-                        $originateMsg = new OriginateAction($channel);
-                        $originateMsg->setExtension('1001');
-                        $originateMsg->setContext('@from-internal');
-                        $originateMsg->setPriority('');
-                        $originateMsg->setApplication('PicoTTS');
-                        $originateMsg->setData('"'.$script.'",any,es-ES');
-                        //$originateMsg->setApplication('agi');
-                        //$originateMsg->setData('googletts.agi,"'.$script.'",es');
-                        //$originateMsg->setTimeout('20000');
-                        $originateMsg->setCallerId('1000');
-                        $originateMsg->setVariable('ID_CARGA',$k->id_carga);
-                        $originateMsg->setAsync(true);
-                        $originateMsg->setActionID($k['telefono']);
-                        $response = $pamiClient->send($originateMsg);
-                        if ($response->isSuccess()) {
-                            $respuesta = "Enviado Correctamente!\n";
-                        } else {
-                            $respuesta = "Envío Fallido!\n";
-                        }
-                        Log::info($k['tiposcript']." - SCRIPT: ".$script);
-                    }
-                    //cambio de estado a cada número enviado
-                    //$idcarga=carga::find($k['id']);
-                    //$idcarga->estado=0;
-                    //$idcarga->save();
-                    $pamiClient->close();
 
-                    $maximo++;
-                        $k->estado=0;
-                        $k->save();
-                    $id_carga=$k->id_carga;
-                }
-                    Log::info("Envio un ivr de id_carga:".$id_carga);
-                }
-                //return "Lista enviada correctamente";
-                */
+                        //$script=scripts::where('id_script',$key['id_script'])->first();
+                        //echo $maximo." - ".$key->id." - ".$script->script." -- \n";
+                        //$maximo++;
+                        $script = scripts::where('id_script', $key['id_script'])->first();
+                        echo "\n" . $script->script;
+                        echo "\nCount: " . $count."\n";
 
-            } catch (Exception $e) {
-                Log::info("Exception: " . $e->getMessage());
+
+                        $pamiClient = new PamiClient($pamiClientOptions);
+                        $pamiClient->open();
+
+                        if ($key['tiposcript'] == 1) {
+                            //INGRESO DE LA GESTION
+                            if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
+                                $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
+                            }
+                            //FIN INGRESO DE LA GESTION
+                            $channel = 'Local/' . trim($key['telefono']) . '@from-internal';
+                            $id_var = scripts::where('id_script', $key['id_script'])->first()->id_var;
+                            $originateMsg = new OriginateAction($channel);
+                            $originateMsg->setExtension('6001');
+                            $originateMsg->setContext('app-ivrplay2');
+                            $originateMsg->setTimeout('30000');
+                            $originateMsg->setCallerId('1000');
+                            $originateMsg->setVariable('VAR', $id_var);
+                            $originateMsg->setVariable('ID_CARGA', $key->id_carga);
+                            $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $key->cargaIvr->id_campania_sis_gest . ',' . $key->cedula);
+                            $originateMsg->setVariable('CEDULA', $key->cedula);
+                            $originateMsg->setAsync(true);
+                            $originateMsg->setActionID(trim($key['telefono']) . '-' . $id_var);
+                            $response = $pamiClient->send($originateMsg);
+                            if ($response->isSuccess()) {
+                                $respuesta = "Ivr estatico Enviado Correctamente, espere unos segundos.!\n";
+                                echo $respuesta;
+                            } else {
+                                $respuesta = "Envío Fallido!\n";
+                            }
+                            echo "\nRespuesta: " . $respuesta . " - " . $key['tiposcript'] . " - SCRIPT: " . $script;
+                            //Log::info("\nCount: ".$count." - Respuesta: ".$respuesta." - ".$key['tiposcript']." - SCRIPT: ".$script);
+                        }
+                        if ($key['tiposcript'] == 2) {
+                            //Seleccionamos el script dinamico creado por el usuario
+                            $script = mb_strtolower(scripts::where('id_script', $key['id_script'])->first()->script);
+                            //Buscamos las variables dentro de este formato {nombre_variable} y las almacenamos en la variable coincidencias
+                            if (preg_match_all('/{([a-z_a-z_0-9])*}/', $script, $coincidencias, PREG_OFFSET_CAPTURE, 0)) {
+                                //echo "HAY ".count($coincidencias[0])." COINCIDENCIAS";
+                            } else {
+                                //echo "NO HAY COINCIDENCIA";
+                            }
+                            //creo una array var para almacenar los campos de la base de datos
+                            $var = array();
+                            for ($i = 0; $i < count($coincidencias[0]); $i++) {
+                                $var[$i] = $coincidencias[0][$i][0];
+                                $var[$i] = substr($var[$i], 1);
+                                $var[$i] = substr($var[$i], 0, -1);
+                                //reemplazo el nombre de las variables con la palabra estatica variable nombre_variable al ser un demo
+                                $script = str_replace($coincidencias[0][$i][0], $key[$var[$i]], $script);
+                            }
+                            //INGRESO DE LA GESTION
+                            if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
+                                $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
+                            }
+                            //FIN INGRESO DE LA GESTION
+                            $channel = 'Local/' . trim($key['telefono']) . '@from-internal';
+                            $originateMsg = new OriginateAction($channel);
+                            $originateMsg->setExtension('1001');
+                            $originateMsg->setContext('@from-internal');
+                            $originateMsg->setPriority('');
+                            $originateMsg->setApplication('PicoTTS');
+                            $originateMsg->setData('"' . $script . '",any,es-ES');
+                            //$originateMsg->setApplication('agi');
+                            //$originateMsg->setData('googletts.agi,"'.$script.'",es');
+                            $originateMsg->setTimeout('30000');
+                            $originateMsg->setCallerId('1000');
+                            $originateMsg->setVariable('ID_CARGA', $key->id_carga);
+                            $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $key->cargaIvr->id_campania_sis_gest . ',' . $key->cedula );
+                            $originateMsg->setVariable('CEDULA', $key->cedula);
+                            $originateMsg->setAsync(true);
+                            $originateMsg->setActionID(trim($key['telefono']));
+                            $response = $pamiClient->send($originateMsg);
+                            if ($response->isSuccess()) {
+                                $respuesta = "Ivr dinámico Enviado Correctamente!\n";
+                                echo $respuesta;
+                            } else {
+                                $respuesta = "Envío Fallido!\n";
+                            }
+                            echo "\nRespuesta: " . $respuesta . " - " . $key['tiposcript'] . " - SCRIPT: " . $script;
+                            //Log::info("\nCount: ".$count." - Respuesta: ".$respuesta." - ".$key['tiposcript']." - SCRIPT: ".$script);
+                        }
+                        $pamiClient->close();
+
+                        $maximo++;
+                        $key->estado = 0;
+                        //INGRESO DE LA GESTION
+                        if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
+                            $key->id_gestion_original=$id_gestion;
+                        }
+                        //FIN INGRESO DE LA GESTION
+                        $key->save();
+                        $idcarga = $key->id_carga;
+
+                    }
+                    //Log::info("Envio un ivr de id_carga:".$idcarga);
+                }
+            }
+            if ($canales->canales > 30) {
+                //mayor a 30 canales espera 10 segundos
+                echo "\nesperando 10 segundos\n";
+                sleep(10);
+            } else {
+                //menos a 30 canales espera 20 segundos
+                echo "\nesperando 20 segundos\n";
+                sleep(5);
             }
         }
     }
+    //FIN CRON LLAMADAS IVR
+
+
+    /*
+    $cantidad_s=0;
+    $cantidad_m=$cantidad_s*2;
+    $carga=carga::where('estado',1)->limit($cantidad_m)->get();
+    $maximo=0;
+    if (count($carga)>0){
+        foreach ($carga as $k) {
+        //$actualizar=carga::where('estado',0)->first();
+        if ($maximo==$cantidad_s){
+            $maximo=0;
+            sleep(25);
+        }
+
+
+        sleep(1);
+        $script=scripts::where('id_script',$k['id_script'])->first();
+
+        $pamiClient = new PamiClient($pamiClientOptions);
+        $pamiClient->open();
+        if ($k['tiposcript']== 1) {
+            $channel = 'Local/'.$k['telefono'].'@from-internal';
+            $id_var=scripts::where('id_script',$k['id_script'])->first()->id_var;
+            $originateMsg = new OriginateAction($channel);
+            $originateMsg->setExtension('6001');
+            $originateMsg->setContext('app-ivrplay2');
+            $originateMsg->setTimeout('20000');
+            $originateMsg->setCallerId('1000');
+            $originateMsg->setVariable('VAR', $id_var);
+            $originateMsg->setVariable('ID_CARGA',$k->id_carga);
+            $originateMsg->setAsync(true);
+            $originateMsg->setActionID($k['telefono'] . '-' .$id_var);
+            $response = $pamiClient->send($originateMsg);
+            if ($response->isSuccess()) {
+                $respuesta = "Enviado Correctamente, espere unos segundos.!\n";
+            } else {
+                $respuesta = "Envío Fallido!\n";
+            }
+            Log::info($k['tiposcript']." - SCRIPT: ".$script);
+        }
+        if ($k['tiposcript']== 2) {
+            //Seleccionamos el script dinamico creado por el usuario
+            $script=mb_strtolower(scripts::where('id_script',$k['id_script'])->first()->script);
+            //Buscamos las variables dentro de este formato {nombre_variable} y las almacenamos en la variable coincidencias
+            if (preg_match_all('/{([a-z_a-z_0-9])*}/',$script,$coincidencias,PREG_OFFSET_CAPTURE, 0))
+            {
+                //echo "HAY ".count($coincidencias[0])." COINCIDENCIAS";
+            }else
+            {
+                //echo "NO HAY COINCIDENCIA";
+            }
+            //creo una array var para almacenar los campos de la base de datos
+            $var=array();
+            for ($i=0;$i<count($coincidencias[0]);$i++){
+                $var[$i]=$coincidencias[0][$i][0];
+                $var[$i]=substr($var[$i],1);
+                $var[$i]=substr($var[$i],0,-1);
+                //reemplazo el nombre de las variables con la palabra estatica variable nombre_variable al ser un demo
+                $script=str_replace($coincidencias[0][$i][0],$k[$var[$i]], $script);
+            }
+            $channel = 'Local/' . $k['telefono'] . '@from-internal';
+            $originateMsg = new OriginateAction($channel);
+            $originateMsg->setExtension('1001');
+            $originateMsg->setContext('@from-internal');
+            $originateMsg->setPriority('');
+            $originateMsg->setApplication('PicoTTS');
+            $originateMsg->setData('"'.$script.'",any,es-ES');
+            //$originateMsg->setApplication('agi');
+            //$originateMsg->setData('googletts.agi,"'.$script.'",es');
+            //$originateMsg->setTimeout('20000');
+            $originateMsg->setCallerId('1000');
+            $originateMsg->setVariable('ID_CARGA',$k->id_carga);
+            $originateMsg->setAsync(true);
+            $originateMsg->setActionID($k['telefono']);
+            $response = $pamiClient->send($originateMsg);
+            if ($response->isSuccess()) {
+                $respuesta = "Enviado Correctamente!\n";
+            } else {
+                $respuesta = "Envío Fallido!\n";
+            }
+            Log::info($k['tiposcript']." - SCRIPT: ".$script);
+        }
+        //cambio de estado a cada número enviado
+        //$idcarga=carga::find($k['id']);
+        //$idcarga->estado=0;
+        //$idcarga->save();
+        $pamiClient->close();
+
+        $maximo++;
+            $k->estado=0;
+            $k->save();
+        $id_carga=$k->id_carga;
+    }
+        Log::info("Envio un ivr de id_carga:".$id_carga);
+    }
+    //return "Lista enviada correctamente";
+    */
 }
 
 function subirGestion($key,$campana){
@@ -696,4 +682,81 @@ function subirGestionesPorCampana($id_campana,$id_carga){
         $idCarg->save();
         return json_decode($response);
     }
+}
+
+function balanceoCanales($canales){
+    //Balanceo los canales sobrantes sobre los demas ivrs activos y ejecutandose
+    $id_carga=id_carga::where('estado',1)->where('estado_aprobado',1)->where('ejecucion',1)->get();
+    if ($id_carga->count() > 1) {
+        $total_canales = 0;
+        foreach ($id_carga as $k) {
+            echo "\nid_carga " . $k->id_carga;
+            $total_canales = $total_canales + $k->canales;
+            if ($total_canales > $canales->canales) {
+                $k->canales = 0;
+                $k->save();
+            }
+        }
+
+        echo "\ntotal canales de los id_carga: " . $total_canales;
+        echo "\ntotal canales disponibles para ivrs: " . $canales->canales;
+        echo "\ntotal id_carga: " . $id_carga->count();
+
+
+        //comentar solo para peru desde ecuador
+        foreach ($id_carga as $k) {
+            if (intval($k->canales) > 0 && intval($k->canales) < 10) {
+                $k->canales = 0;
+                $k->save();
+            }
+        }
+        //comentar solo para peru desde ecuador
+
+        if ($total_canales == $canales->canales) {
+            $total_canales = $total_canales - 1;
+        }
+
+        if ($total_canales < $canales->canales) {
+            echo "\nentro al if total canales <= canales";
+            $total_canales = intval($canales->canales);
+
+            //sirve para dividir los canales para todas las campañas activas -> sirve para Perú desde ecuador
+            //$acanales=intval(floor($canales->canales/$id_carga->count()));
+
+            //comentar solo para peru desde ecuador
+            //valida que el total de canales a distribuir sea igual o mayor a 10 canales por campaña
+            $total_campanias = $id_carga->count();
+            do {
+                $acanales = intval(floor($canales->canales / $total_campanias));
+                $total_campanias = $total_campanias - 1;
+                echo "\nacanales: " . $acanales;
+            } while ($acanales < 10);
+            //comentar solo para peru desde ecuador
+
+            foreach ($id_carga as $k) {
+                if ($acanales <= $total_canales) {
+                    echo "\nid carga por recibir canales: " . $k->id_carga;
+                    echo " - canales a recibir : " . $acanales;
+                    $k->canales = $acanales;
+                    $k->save();
+                }
+                $total_canales = $total_canales - $acanales;
+                echo "\ntotal_canales: " . $total_canales;
+            }
+
+            //Si sobran canales le sumo a la primera campaña de la lista
+            if ($total_canales > 0) {
+                $id_final = $id_carga->first();
+                $id_final->canales = $id_final->canales + $total_canales;
+                $id_final->save();
+            }
+        }
+
+    } elseif ($id_carga->count() == 1) {
+        echo "\nentro al else";
+        $icarga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->first();
+        $icarga->canales = $canales->canales;
+        $icarga->save();
+    }
+    //Fin balanceo de canales
 }

@@ -20,6 +20,7 @@
             <ul class="nav nav-tabs">
                 <li class="active"><a href="#primer_reporte" data-toggle="tab" onclick="$('#reporte_nro').val(1);">GENERAL DE CUENTAS</a></li>
                 <li class="nav-item"><a href="#segundo_reporte" data-toggle="tab" onclick="$('#reporte_nro').val(2);">HISTORIAL DE GESTIONES</a></li>
+                <li class="nav-item"><a href="#tercer_reporte" data-toggle="tab" onclick="$('#reporte_nro').val(3);">REPORTE DE RECUPERACIÓN</a></li>
                 <input type="hidden" id="reporte_nro" value="1">
             </ul>
         </div>
@@ -67,8 +68,8 @@
                                                                 </select>
 
                                                                 <span class="input-group-addon">
-                                <span class="glyphicon glyphicon"></span>
-                                </span>
+                                                                    <span class="glyphicon glyphicon"></span>
+                                                                </span>
                                                             </div>
                                                         </th>
                                                     </tr>
@@ -165,6 +166,75 @@
                                 </nav>
                             </div>
                         </div>
+
+                        <div class="tab-pane fade" id="tercer_reporte">
+                            <div class="col-md-12 col-lg-12">
+                                <form role="search" action="rBRecuperacion" method="post">
+                                    {{ csrf_field() }}
+                                    <div class="well">
+                                        <table class="table">
+                                            <thead>
+                                            <tr>
+                                                <th>Marca:
+                                                    <div class='input-group date' id=''>
+                                                        <select class="form-control" title="SELECCIONE UNO" name="id_marca" id="id_marca" required>
+                                                            <option value="">Seleccione Uno</option>
+                                                            @foreach($marcas as $marca)
+                                                                <option value="{{$marca->id}}">{{$marca->name}}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <span class="input-group-addon"></span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            <tr><th>Producto:
+                                                    <div class='input-group date' id=''>
+                                                        <select class="form-control" title="SELECCIONE UNO" name="id_producto" id="id_producto" required>
+                                                            <option value="">Seleccione Uno</option>
+                                                        </select>
+                                                        <span class="input-group-addon">
+                                <span class="glyphicon glyphicon"></span>
+                                </span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            <tr><th>Campaña:
+                                                    <div class='input-group date' id=''>
+
+                                                        <select class="form-control" title="SELECCIONE UNO" name="id_campana3[]" id="id_campana3" required>
+                                                            <option value="">Seleccione Uno</option>
+                                                        </select>
+
+                                                        <span class="input-group-addon">
+                                                            <span class="glyphicon glyphicon"></span>
+                                                        </span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            <tr>
+                                                <th>
+                                                    <div class="radio">
+                                                        <label class="checkbox-inline"><input type="checkbox" value="1" name="cuentasInhabilitadas3" id="cuentasInhabilitadas3" onclick="cuentas()"><strong>Incluir cuentas deshabilitadas</strong></label>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            </thead>
+                                        </table>
+                                        <button type="submit" class="btn btn-success"><span class="glyphicon glyphicon-download-alt"></span> Descargar</button>
+                                    </div>
+                                </form>
+                                <nav class="navbar navbar-default">
+                                    <div class="container-fluid">
+                                        <div class="navbar-header">
+                                            <a class="navbar-brand" href="#" id="cuentas3" style="color: #000; margin-bottom: 15px"></a>
+                                            <div id="loader-icon3" style="display:none; color: green;padding-top: 5px" align="center">
+                                                <img src="{{asset('images/loading.gif')}}" width="70"><br>PROCESANDO . . .
+                                            </div>
+                                        </div>
+                                    </div>
+                                </nav>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -235,6 +305,24 @@
     });
 
     $("select[name='id_campana2[]']").change(function(){
+        var reporte_nro = $('#reporte_nro').val();
+        $('#loader-icon'+reporte_nro).show();
+        $("#cuentas"+reporte_nro).html('');
+        var id_campana = $(this).val();
+        var token = $("input[name='_token']").val();
+        $.ajax({
+            url: "/gCuentasBelcorp",
+            method: 'POST',
+            data: {id_campana:id_campana, _token:token},
+            success: function(data) {
+                console.log(reporte_nro);
+                $('#loader-icon'+reporte_nro).hide();
+                $("#cuentas"+reporte_nro).html('- '+data.cuentas+' Cuentas<br>'+'- '+data.gestiones+' Gestiones');
+            }
+        });
+    });
+
+    $("select[name='id_campana3[]']").change(function(){
         var reporte_nro = $('#reporte_nro').val();
         $('#loader-icon'+reporte_nro).show();
         $("#cuentas"+reporte_nro).html('');

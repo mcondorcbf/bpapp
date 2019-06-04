@@ -566,6 +566,14 @@ group by 1,2,3
         $reportesDLegal10=cumplimientoQuery10('Diners Legal');
         $reportesDLegal11=cumplimientoQuery11('Diners Legal');
 
+        $reportesEquifax2=cumplimientoQuery2($fecha_inicio,$fecha_fin,'Equifax');
+        $reportesEquifax3=cumplimientoQuery3('Equifax');
+        $reportesEquifax7=cumplimientoQuery7('Equifax');
+        $reportesEquifax8=cumplimientoQuery8('Equifax');
+        $reportesEquifax9=cumplimientoQuery9('Equifax');
+        $reportesEquifax10=cumplimientoQuery10('Equifax');
+        $reportesEquifax11=cumplimientoQuery11('Equifax');
+
 
         \Excel::create('REPORTE DE CUMPLIMIENTO '.$fecha_inicio.' al '.$fecha_fin, function($excel) use (&$reportes1,$reportes2,$reportes3,$reportes4,$reportes5,$reportes6,
             $reportesBelcorp2,$reportesBelcorp3,$reportesBelcorp7,$reportesBelcorp8,$reportesBelcorp9,$reportesBelcorp10,$reportesBelcorp11,
@@ -573,6 +581,7 @@ group by 1,2,3
             $reportesCoop2,$reportesCoop3,$reportesCoop7,$reportesCoop8,$reportesCoop9,$reportesCoop10,$reportesCoop11,
             $reportesGye2,$reportesGye3,$reportesGye7,$reportesGye8,$reportesGye9,$reportesGye10,$reportesGye11,
             $reportesDLegal2,$reportesDLegal3,$reportesDLegal7,$reportesDLegal8,$reportesDLegal9,$reportesDLegal10,$reportesDLegal11,
+            $reportesEquifax2,$reportesEquifax3,$reportesEquifax7,$reportesEquifax8,$reportesEquifax9,$reportesEquifax10,$reportesEquifax11,
             $fecha_inicio,$fecha_fin){
             $excel->sheet('RESUMEN', function($sheet) use($reportes1,$reportes2,$reportes3,$reportes4,$reportes5,$reportes6,$fecha_inicio,$fecha_fin) {
                 $sheet->loadView('reporteNuevoSistema/cex/table/tableCumplimientoResumen')->with('reportes1',$reportes1)
@@ -650,6 +659,20 @@ group by 1,2,3
                         ->with('reportes9', $reportesDLegal9)
                         ->with('reportes10', $reportesDLegal10)
                         ->with('reportes11', $reportesDLegal11)
+                        ->with('fecha_inicio', $fecha_inicio)
+                        ->with('fecha_fin', $fecha_fin);
+                });
+            }
+            if (count($reportesEquifax2)>0) {
+                $excel->sheet('EQUIFAX', function ($sheet) use ($reportes1, $reportesEquifax2,$reportesEquifax3,$reportesEquifax7,$reportesEquifax8,$reportesEquifax9,$reportesEquifax10,$reportesEquifax11, $fecha_inicio, $fecha_fin) {
+                    $sheet->loadView('reporteNuevoSistema/cex/table/tableCumplimientoMarca')->with('reportes1', $reportes1)
+                        ->with('reportes2', $reportesEquifax2)
+                        ->with('reportes3', $reportesEquifax3)
+                        ->with('reportes7', $reportesEquifax7)
+                        ->with('reportes8', $reportesEquifax8)
+                        ->with('reportes9', $reportesEquifax9)
+                        ->with('reportes10', $reportesEquifax10)
+                        ->with('reportes11', $reportesEquifax11)
                         ->with('fecha_inicio', $fecha_inicio)
                         ->with('fecha_fin', $fecha_fin);
                 });
@@ -1135,378 +1158,29 @@ from cobefec_reportes.zonificacion_cex z
 
     public function monitoreoCexRes()
     {
-        $fecha=date('Y-m-d');
-        $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
-        //$gestores=$api_cobefec->toArray();
-        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
-        $idispositivos=0;
-        foreach ($dispositivos as $dispositivo){
-
-            $imeis=tbl_api_cobefec::whereDate('created_at',$fecha)->where('asyncStatus',0)->where('referencia',0)->where('calculado',0)->where('imei',$dispositivo['imei'])->get(['id','bateria_porcentaje','latitud','longitud','secuencia','imei','created_at','update_time']);
-
-            if(count($imeis)==0){
-                $imei = tbl_api_cobefec::whereDate('created_at', $fecha)->where('asyncStatus', 0)->where('imei', $dispositivo['imei'])->orderBy('id', 'DESC')->first();
-                if ($imei != null){
-                $fecha1 = new \DateTime($imei->hora_inicio);//fecha inicial
-                $fecha2 = new \DateTime();//fecha de cierre
-                $intervalo = $fecha2->diff($fecha1);
-
-
-                $imei->tiempo_parado = $intervalo->format('%H:%I:%S');
-                $imei->save();
-            }
-
-
-            }else {
-                $ultima_referencia = tbl_api_cobefec::whereDate('created_at', $fecha)->where('asyncStatus', 0)->where('calculado', 1)->where('referencia', 1)->where('ultima_referencia', 1)->where('imei', $dispositivo['imei'])->get(['id', 'ultima_referencia', 'latitud', 'longitud', 'update_time'])->first();
-
-                if ($ultima_referencia == null) {
-                    $ultima_referencia = tbl_api_cobefec::find($imeis[0]['id']);
-                    $ultima_referencia->referencia = 1;
-                    $ultima_referencia->ultima_referencia = 1;
-                    $ultima_referencia->save();
-                }
-                if (count($imeis) > 0) {
-                    foreach ($imeis as $imei) {
-                        $distancia = distanceCalculation($ultima_referencia->latitud, $ultima_referencia->longitud, $imei['latitud'], $imei['longitud']);
-
-                        $api_cbc = tbl_api_cobefec::find($imei['id']);
-                        $api_cbc->distancia = $distancia;
-                        $api_cbc->save();
-
-                        $fecha1 = new \DateTime($ultima_referencia->update_time);//fecha inicial
-                        $fecha2 = new \DateTime($imei['update_time']);//fecha de cierre
-                        $intervalo = $fecha2->diff($fecha1);
-
-                        if ($distancia <= $configuracion->distancia) {
-                            $api = tbl_api_cobefec::find($imei['id']);
-                            $api->calculado = 1;
-                            $api->save();
-
-                            if ($intervalo->format('%H%i') > $configuracion->tiempo_parada) {
-                                //echo 'Lleva '.$created->diff($now)->i.' minutos parados. Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
-                                $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
-                                $dispositivos[$idispositivos]['alerta'] = 'alert alert-danger';
-
-                                $paradas_recorrido = new tbl_paradas_recorrido();
-                                $paradas_recorrido->id_api = $imei['id'];
-                                $paradas_recorrido->id_dispositivo = $dispositivo['id'];
-                                $paradas_recorrido->id_parada_configuracion = $configuracion->id;
-                                $paradas_recorrido->distancia = $distancia;
-                                $paradas_recorrido->hora = $imei['update_time'];
-                                $paradas_recorrido->tiempo_detenido = $intervalo->format('%i');
-                                $paradas_recorrido->hora_salida = '';
-                                $paradas_recorrido->tiempo_recorrido = '';
-                                $paradas_recorrido->kms = '';
-                                $paradas_recorrido->ciudad = '';
-                                $paradas_recorrido->direccion = '';
-                                $paradas_recorrido->save();
-
-                            } else {
-                                $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
-                                $dispositivos[$idispositivos]['alerta'] = '';
-                                //echo 'Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
-                            }
-                            $api_cbc = tbl_api_cobefec::find($imei['id']);
-                            $api_cbc->hora_fin = $fecha2;
-                            $api_cbc->hora_inicio = $fecha1;
-                            $api_cbc->tiempo_parado = $intervalo->format('%H:%I:%S');
-                            $api_cbc->distancia = $distancia;
-                            $api_cbc->save();
-                            $idispositivos++;
-                        } else {
-                            $ultima_referencia->ultima_referencia = 0;
-                            $ultima_referencia->save();
-
-                            $api = tbl_api_cobefec::find($imei['id']);
-                            $api->calculado = 1;
-                            $api->referencia = 1;
-                            $api->hora_fin = $fecha2;
-                            $api->hora_inicio = $fecha1;
-                            $api->tiempo_parado = $intervalo->format('%H:%I:%S');
-                            $api->ultima_referencia = 1;
-                            $api->save();
-                            $ultima_referencia = tbl_api_cobefec::find($api->id);
-                        }
-                        /*$dispositivos[$idispositivos]['id_api']=$imei['id'];
-                        $dispositivos[$idispositivos]['id_dispositivo']=$dispositivo['id'];
-                        $dispositivos[$idispositivos]['id_parada_configuracion']=$configuracion->id;
-                        $dispositivos[$idispositivos]['hora']='';
-                        $dispositivos[$idispositivos]['tiempo_detenido']=$intervalo->format('%i');
-                        $dispositivos[$idispositivos]['hora_salida']='';
-                        $dispositivos[$idispositivos]['tiempo_recorrido']='';
-                        $dispositivos[$idispositivos]['kms']='';
-                        $dispositivos[$idispositivos]['ciudad']='';
-                        $dispositivos[$idispositivos]['direccion']='';*/
-                    }
-                }
-            }
-        }
-
+        $fecha_inicio=date('Y-m-d');
+        $dispositivos=monitoreoCexOnline($fecha_inicio);
 
         $gestors=tbl_users::whereIn('id',tbl_executives::whereNull('deleted_at')->get(['user_id']))->where('enabled',1)->whereNull('deleted_at')->pluck("email","id")->all();
-        $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
-        $dispositivosfs=Array();
-        $idsp=0;
-        foreach ($dispositivos as $dispositivo){
-            $api_cobefec=tbl_api_cobefec::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->where('asyncStatus',0)->orderBy('id','DESC')->first();
-            if ($api_cobefec != null){
-
-                $fecha1 = new \DateTime($api_cobefec->tiempo_parado);//fecha inicial
-                $fecha2 = new \DateTime(date('Y:m:d ').$configuracion->time_out);//fecha cierre
-                $intervalo = $fecha2->diff($fecha1);
-
-                if ($fecha1>$fecha2){
-                    $dispositivos[$idsp]['alerta']='danger';
-                    $dispositivos[$idsp]['alerta_mensaje']='SUPERO EL TIEMPO DE PARADA';
-                }else{
-                    $dispositivos[$idsp]['alerta']='primary';
-                    $dispositivos[$idsp]['alerta_mensaje']='';
-                }
 
 
-                $dispositivos[$idsp]['tiempo_parado']=$api_cobefec->tiempo_parado;
-                $dispositivos[$idsp]['distancia']=$api_cobefec->distancia;
-                $dispositivos[$idsp]['bateria_porcentaje']=$api_cobefec->bateria_porcentaje."%";
-
-                $gpsStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('status_gps')->orderBy('id','DESC')->first();
-                $dispositivos[$idsp]['status_gps']="ACTIVO";
-                if(isset($gpsStatus->status_gps)){
-                    if($gpsStatus->status_gps==1){
-                        $dispositivos[$idsp]['status_gps']="ACTIVO";
-                    }elseif($gpsStatus->status_gps==0){
-                        $dispositivos[$idsp]['status_gps']="INACTIVO";
-                        $dispositivos[$idsp]['alerta_mensaje'].=' // SIN SEÑAL POSIBLEMENTE DESACTIVO EL GPS';
-                    }
-                }
-                $appStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('appStatus')->orderBy('id','DESC')->first();
-                $dispositivos[$idsp]['appStatus']="ACTIVO";
-                if(isset($appStatus->appStatus)){
-                    if($appStatus->appStatus==1){
-                        $dispositivos[$idsp]['appStatus']="ACTIVO";
-                    }elseif($appStatus->appStatus==0){
-                        $dispositivos[$idsp]['appStatus']="INACTIVO";
-                        $dispositivos[$idsp]['alerta_mensaje'].=' // APAGO EL DISPOSITIVO';
-                    }
-                }
-                $dispositivos[$idsp]['status_hora']="-";
-            }else{
-
-                $dispositivos[$idsp]['tiempo_parado']='';
-                $dispositivos[$idsp]['distancia']='';
-                $dispositivos[$idsp]['bateria_porcentaje']='';
-                $dispositivos[$idsp]['alerta']='primary';
-                $dispositivos[$idsp]['alerta_mensaje']='Sin Novedad';
-                $dispositivos[$idsp]['appStatus']="INACTIVO";
-                $dispositivos[$idsp]['status_gps']="INACTIVO";
-                $dispositivos[$idsp]['status_hora']="-";
-
-                array_push($dispositivosfs,$dispositivos[$idsp]);
-                unset($dispositivos[$idsp]);
-
-            }
-            $idsp++;
-        }
-        foreach ($dispositivosfs as $dispositivosf){
-            array_push($dispositivos,$dispositivosf);
-        }
-
-        //dd($dispositivos);
-
-        return view('reporteNuevoSistema/cex/monitoreo/index2', compact('gestores','gestors','dispositivos','api_cobefec'));
+        return view('reporteNuevoSistema/cex/monitoreo/index2', compact('gestors','dispositivos','api_cobefec','fecha_inicio'));
     }
 
     public function monitoreoCexResPost(Request $request)
     {
-
         $fecha=$request->fecha;
-        $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
-        //$gestores=$api_cobefec->toArray();
-        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
-        $idispositivos=0;
-        foreach ($dispositivos as $dispositivo){
-
-            $imeis=tbl_api_cobefec::whereDate('created_at',$fecha)->where('asyncStatus',0)->where('referencia',0)->where('calculado',0)->where('imei',$dispositivo['imei'])->get(['id','bateria_porcentaje','latitud','longitud','secuencia','imei','created_at','update_time']);
-
-            if(count($imeis)==0){
-                $imei = tbl_api_cobefec::whereDate('created_at', $fecha)->where('asyncStatus', 0)->where('imei', $dispositivo['imei'])->orderBy('id', 'DESC')->first();
-                if ($imei != null){
-                    $fecha1 = new \DateTime($imei->hora_inicio);//fecha inicial
-                    $fecha2 = new \DateTime();//fecha de cierre
-                    $intervalo = $fecha2->diff($fecha1);
-
-
-                    $imei->tiempo_parado = $intervalo->format('%H:%I:%S');
-                    $imei->save();
-                }
-
-
-            }else {
-                $ultima_referencia = tbl_api_cobefec::whereDate('created_at', $fecha)->where('asyncStatus', 0)->where('calculado', 1)->where('referencia', 1)->where('ultima_referencia', 1)->where('imei', $dispositivo['imei'])->get(['id', 'ultima_referencia', 'latitud', 'longitud', 'update_time'])->first();
-
-                if ($ultima_referencia == null) {
-                    $ultima_referencia = tbl_api_cobefec::find($imeis[0]['id']);
-                    $ultima_referencia->referencia = 1;
-                    $ultima_referencia->ultima_referencia = 1;
-                    $ultima_referencia->save();
-                }
-                if (count($imeis) > 0) {
-                    foreach ($imeis as $imei) {
-                        $distancia = distanceCalculation($ultima_referencia->latitud, $ultima_referencia->longitud, $imei['latitud'], $imei['longitud']);
-
-                        $api_cbc = tbl_api_cobefec::find($imei['id']);
-                        $api_cbc->distancia = $distancia;
-                        $api_cbc->save();
-
-                        $fecha1 = new \DateTime($ultima_referencia->update_time);//fecha inicial
-                        $fecha2 = new \DateTime($imei['update_time']);//fecha de cierre
-                        $intervalo = $fecha2->diff($fecha1);
-
-                        if ($distancia <= $configuracion->distancia) {
-                            $api = tbl_api_cobefec::find($imei['id']);
-                            $api->calculado = 1;
-                            $api->save();
-
-                            if ($intervalo->format('%H%i') > $configuracion->tiempo_parada) {
-                                //echo 'Lleva '.$created->diff($now)->i.' minutos parados. Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
-                                $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
-                                $dispositivos[$idispositivos]['alerta'] = 'alert alert-danger';
-
-                                $paradas_recorrido = new tbl_paradas_recorrido();
-                                $paradas_recorrido->id_api = $imei['id'];
-                                $paradas_recorrido->id_dispositivo = $dispositivo['id'];
-                                $paradas_recorrido->id_parada_configuracion = $configuracion->id;
-                                $paradas_recorrido->distancia = $distancia;
-                                $paradas_recorrido->hora = $imei['update_time'];
-                                $paradas_recorrido->tiempo_detenido = $intervalo->format('%i');
-                                $paradas_recorrido->hora_salida = '';
-                                $paradas_recorrido->tiempo_recorrido = '';
-                                $paradas_recorrido->kms = '';
-                                $paradas_recorrido->ciudad = '';
-                                $paradas_recorrido->direccion = '';
-                                $paradas_recorrido->save();
-
-                            } else {
-                                $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
-                                $dispositivos[$idispositivos]['alerta'] = '';
-                                //echo 'Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
-                            }
-                            $api_cbc = tbl_api_cobefec::find($imei['id']);
-                            $api_cbc->hora_fin = $fecha2;
-                            $api_cbc->hora_inicio = $fecha1;
-                            $api_cbc->tiempo_parado = $intervalo->format('%H:%I:%S');
-                            $api_cbc->distancia = $distancia;
-                            $api_cbc->save();
-                            $idispositivos++;
-                        } else {
-                            $ultima_referencia->ultima_referencia = 0;
-                            $ultima_referencia->save();
-
-                            $api = tbl_api_cobefec::find($imei['id']);
-                            $api->calculado = 1;
-                            $api->referencia = 1;
-                            $api->hora_fin = $fecha2;
-                            $api->hora_inicio = $fecha1;
-                            $api->tiempo_parado = $intervalo->format('%H:%I:%S');
-                            $api->ultima_referencia = 1;
-                            $api->save();
-                            $ultima_referencia = tbl_api_cobefec::find($api->id);
-                        }
-                        /*$dispositivos[$idispositivos]['id_api']=$imei['id'];
-                        $dispositivos[$idispositivos]['id_dispositivo']=$dispositivo['id'];
-                        $dispositivos[$idispositivos]['id_parada_configuracion']=$configuracion->id;
-                        $dispositivos[$idispositivos]['hora']='';
-                        $dispositivos[$idispositivos]['tiempo_detenido']=$intervalo->format('%i');
-                        $dispositivos[$idispositivos]['hora_salida']='';
-                        $dispositivos[$idispositivos]['tiempo_recorrido']='';
-                        $dispositivos[$idispositivos]['kms']='';
-                        $dispositivos[$idispositivos]['ciudad']='';
-                        $dispositivos[$idispositivos]['direccion']='';*/
-                    }
-                }
-            }
-        }
-
-
-        $gestors=tbl_users::whereIn('id',tbl_executives::whereNull('deleted_at')->get(['user_id']))->where('enabled',1)->whereNull('deleted_at')->pluck("email","id")->all();
-        $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
-        $dispositivosfs=Array();
-        $idsp=0;
-        foreach ($dispositivos as $dispositivo){
-            $api_cobefec=tbl_api_cobefec::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->where('asyncStatus',0)->orderBy('id','DESC')->first();
-            if ($api_cobefec != null){
-                $fecha1 = new \DateTime($api_cobefec->tiempo_parado);//fecha inicial
-                $fecha2 = new \DateTime(date('Y:m:d ').$configuracion->time_out);//fecha cierre
-                $intervalo = $fecha2->diff($fecha1);
-
-                if ($fecha1>$fecha2){
-                    $dispositivos[$idsp]['alerta']='alert alert-danger';
-                    $dispositivos[$idsp]['alerta_mensaje']='SUPERO EL TIEMPO DE PARADA';
-                }else{
-                    $dispositivos[$idsp]['alerta']='primary';
-                    $dispositivos[$idsp]['alerta_mensaje']='';
-                }
-
-
-                $dispositivos[$idsp]['tiempo_parado']=$api_cobefec->tiempo_parado;
-                $dispositivos[$idsp]['distancia']=$api_cobefec->distancia;
-                $dispositivos[$idsp]['bateria_porcentaje']=$api_cobefec->bateria_porcentaje."%";
-
-                $gpsStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('status_gps')->orderBy('id','DESC')->first();
-                $dispositivos[$idsp]['status_gps']="ACTIVO";
-                if(isset($gpsStatus->status_gps)){
-                    if($gpsStatus->status_gps==1){
-                        $dispositivos[$idsp]['status_gps']="ACTIVO";
-                    }elseif($gpsStatus->status_gps==0){
-                        $dispositivos[$idsp]['status_gps']="INACTIVO";
-                        $dispositivos[$idsp]['alerta_mensaje'].=' // SIN SEÑAL POSIBLEMENTE DESACTIVO EL GPS';
-                    }
-                }
-                $appStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('appStatus')->orderBy('id','DESC')->first();
-                $dispositivos[$idsp]['appStatus']="ACTIVO";
-                if(isset($appStatus->appStatus)){
-                    if($appStatus->appStatus==1){
-                        $dispositivos[$idsp]['appStatus']="ACTIVO";
-                    }elseif($appStatus->appStatus==0){
-                        $dispositivos[$idsp]['appStatus']="INACTIVO";
-                        $dispositivos[$idsp]['alerta_mensaje'].=' // APAGO EL DISPOSITIVO';
-                    }
-                }
-                $dispositivos[$idsp]['status_hora']="-";
-            }else{
-
-                $dispositivos[$idsp]['tiempo_parado']='';
-                $dispositivos[$idsp]['distancia']='';
-                $dispositivos[$idsp]['bateria_porcentaje']='';
-                $dispositivos[$idsp]['alerta']='danger';
-                $dispositivos[$idsp]['alerta_mensaje']='Sin Novedad';
-                $dispositivos[$idsp]['appStatus']="INACTIVO";
-                $dispositivos[$idsp]['status_gps']="INACTIVO";
-                $dispositivos[$idsp]['status_hora']="-";
-
-                array_push($dispositivosfs,$dispositivos[$idsp]);
-                unset($dispositivos[$idsp]);
-
-            }
-            $idsp++;
-        }
-        foreach ($dispositivosfs as $dispositivosf){
-            array_push($dispositivos,$dispositivosf);
-        }
-
-        //dd($dispositivos);
+        $dispositivos=monitoreoCexOnline($fecha);
 
         return $dispositivos;
+
     }
 
     public function monitoreoCexMapa($cedula,$fecha)
     {
-        //dd($fecha);
-        $gestor=tbl_dispositivos::where('cedula',$cedula)->first();
-        $coords=tbl_api_cobefec::where('imei',$gestor->imei)->whereDate('created_at',$fecha)->whereDate('update_time',$fecha)->where('latitud','<>','')->orderBy('secuencia')->get(['id','imei','secuencia','secid','latitud','longitud','tiempo_parado','distancia','bateria_porcentaje','update_time'])->toArray();
         $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
-        //dd($coords);
-
+        $gestor=tbl_dispositivos::where('cedula',$cedula)->first();
+        $coords=tbl_api_cobefec::where('imei',$gestor->imei)->where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->where('update_time','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('latitud','<>','')->where('asyncStatus',0)->where('referencia',1)->orderBy('id')->get(['id','imei','secuencia','secid','latitud','longitud','tiempo_parado','distancia','bateria_porcentaje','update_time']);
 
         $coordenadas=Array();
         foreach($coords as $coord){
@@ -1519,6 +1193,83 @@ from cobefec_reportes.zonificacion_cex z
             //dd($fecha1);
             //if ($fecha2<$fecha1 && $coord['distancia']<$configuracion->distancia_tolerancia){
                 array_push($coordenadas,$coord);
+            //}
+        }
+
+        if(count($coordenadas)==0){
+            return 'Sin Datos';
+        }
+
+        $user=tbl_users::where('username',$cedula)->first();
+        $executive=tbl_executives::where('user_id',$user->id)->first();
+        if(isset($executive))$rutas=tbl_routes::where('executive_id',$executive->id)->whereDate('date',$fecha)->first();
+
+        $gestiones=Array();
+        if (isset($rutas)){
+            $rutas=json_decode($rutas->data);
+            $ir=0;
+            foreach ($rutas as $ruta){
+                $ruta->latitude=str_replace(',','.',$ruta->latitude);
+                $ruta->longitude=str_replace(',','.',$ruta->longitude);
+                if($ruta->type=='DEMARCHE'){
+                    //extraigo la observacion del json campo description
+                    $texto = $ruta->description;
+                    $palabra = "OBSERVACIÓN:";
+                    $description= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
+                    $description= $texto;
+                    $palabra = "Cliente:";
+                    $nombreCliente= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
+                    $posicion=strpos($nombreCliente,"-");
+                    $nombreCliente=substr($nombreCliente,0,$posicion);
+
+                    //busco en el sistema de gestión
+                    $demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->where('validated',1)->where('discarded',0)->first();
+
+                    if(isset($demarche)){
+                        $rutas[$ir]->agente=$demarche->agent;
+                        $rutas[$ir]->cedula_cuenta=$demarche->document;
+                        $datos_cuenta=json_decode($demarche->cuenta->data);
+                        if(isset($datos_cuenta->nombres)){
+                            $rutas[$ir]->nombre_cuenta=$datos_cuenta->nombres;
+                        }elseif(isset($datos_cuenta->nomsoc)){
+                            $rutas[$ir]->nombre_cuenta = $datos_cuenta->nomsoc;
+                        }else{
+                            $rutas[$ir]->nombre_cuenta='REVISAR LA CONFIGURACION DEL NOMBRE DE LA CUENTA EN LA CAMPAÑA';
+                        }
+                        $campana_cuenta=$demarche->cuenta->campana;
+                        $rutas[$ir]->campana=$campana_cuenta->name;
+                        $producto_cuenta=$campana_cuenta->producto;
+                        $rutas[$ir]->producto=$producto_cuenta->name;
+                        $rutas[$ir]->accion=$demarche->action;
+                        $rutas[$ir]->sub_accion=$demarche->sub_action;
+                        $rutas[$ir]->description=$description;
+                        array_push($gestiones,$ruta);
+                    }
+                }
+                $ir++;
+            }
+        }
+
+        return view('reporteNuevoSistema/cex/monitoreo/mapa', compact('coordenadas','gestor','gestiones'));
+    }
+
+    public function monitoreoCexMapaTotal($cedula,$fecha)
+    {
+        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
+        $gestor=tbl_dispositivos::where('cedula',$cedula)->first();
+        $coords=tbl_api_cobefec::where('imei',$gestor->imei)->where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('latitud','<>','')->orderBy('secid')->get(['id','imei','secuencia','secid','latitud','longitud','tiempo_parado','distancia','bateria_porcentaje','update_time'])->toArray();
+
+        $coordenadas=Array();
+        foreach($coords as $coord){
+            $fecha1 = new \DateTime($fecha.$configuracion->tiempo_tolerancia);//fecha inicial
+            $fecha2 = new \DateTime($fecha.$coord['tiempo_parado']);//fecha de cierre
+
+            //$intervalo = $fecha2->diff($fecha1);
+            //echo $configuracion->tiempo_tolerancia.' - '.$coord['tiempo_parado'];
+
+            //dd($fecha1);
+            //if ($fecha2<$fecha1 && $coord['distancia']<$configuracion->distancia_tolerancia){
+            array_push($coordenadas,$coord);
             //}
         }
 
@@ -1591,29 +1342,24 @@ from cobefec_reportes.zonificacion_cex z
 
     public function dashboardCexMapa($fecha,$imei)
     {
-
-        $status_gps_On=tbl_auditoria_dispositivos::where('imei',$imei)->where('status_gps',1)->whereDate('created_at',$fecha)->count();
-        $status_gps_Off=tbl_auditoria_dispositivos::where('imei',$imei)->where('status_gps',0)->whereDate('created_at',$fecha)->count();
-        $appCloseStatus_On=tbl_auditoria_dispositivos::where('imei',$imei)->where('appStatus',1)->whereDate('created_at',$fecha)->count();
-        $appCloseStatus_Off=tbl_auditoria_dispositivos::where('imei',$imei)->where('appStatus',0)->whereDate('created_at',$fecha)->count();
-        $cambio_hora_On=tbl_auditoria_dispositivos::where('imei',$imei)->where('cambio_hora',1)->whereDate('created_at',$fecha)->count();
-        $cambio_hora_Off=tbl_auditoria_dispositivos::where('imei',$imei)->where('cambio_hora',0)->whereDate('created_at',$fecha)->count();
-        $zona_horaria_On=tbl_auditoria_dispositivos::where('imei',$imei)->where('zona_horaria',1)->whereDate('created_at',$fecha)->count();
-        $zona_horaria_Off=tbl_auditoria_dispositivos::where('imei',$imei)->where('zona_horaria',0)->whereDate('created_at',$fecha)->count();
-
-        //$point1 = array("lat" => "48.8666667", "long" => "2.3333333"); // París (Francia)
-        //$point2 = array("lat" => "19.4341667", "long" => "-99.1386111"); // Ciudad de México (México)
-
-        $paradas=tbl_api_cobefec::whereDate('created_at',$fecha)->where('referencia',1)->where('imei',$imei)->orderBy('secuencia')->get()->toArray();
+        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
+        $paradas=tbl_api_cobefec::where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('id')->get()->toArray();
         if(!isset($paradas)){
             $paradas=Array();
         }
+
+        $paradasReales=tbl_api_cobefec::whereDate('created_at',$fecha)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('secid')->get()->toArray();
+        if(!isset($paradasReales)){
+            $paradasReales=Array();
+        }
+
         $paradasDirecciones=tbl_api_cobefec::whereDate('created_at',$fecha)->where('referencia',1)->where('imei',$imei)->where('direccion',null)->orderBy('secuencia')->get()->toArray();
 
         if(!isset($paradas)){
             $paradasDirecciones=Array();
         }
-        $datosObjs=tbl_auditoria_dispositivos::whereDate('created_at',$fecha)->whereDate('dttimeupdate',$fecha)->where('imei',$imei)->get()->toArray();
+        $datosObjs=tbl_auditoria_dispositivos::whereDate('created_at',$fecha)->whereDate('dttimeupdate',$fecha)->where('imei',$imei)->orderBy('dttimeupdate','ASC')->get()->toArray();
+
         $datos=Array();
         if (isset($datosObjs)){
             foreach ($datosObjs as $datosObj){
@@ -1626,15 +1372,70 @@ from cobefec_reportes.zonificacion_cex z
         $apps=tbl_api_cobefec::whereDate('created_at',$fecha)->where('imei',$imei)->whereNotNull('extras')->orderBy('secuencia')->first(['extras']);
         if (isset($apps)){
             $apps=json_decode($apps['extras'],true);
+        }else{
+            $apps=Array();
+
+            }
+
+        return view('reporteNuevoSistema/cex/monitoreo/dashboard',compact('paradas','datos','apps','paradasDirecciones','paradasReales'));
+    }
+
+    public function dashboardCexMapaG($fecha,$imei)
+    {
+        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
+        $asesor=tbl_dispositivos::where('imei',$imei)->first();
+        $paradas=tbl_api_cobefec::where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->where('update_time','<',$fecha.' '.$configuracion->hora_fin)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('id')->get()->toArray();
+        if(!isset($paradas)){
+            $paradas=Array();
         }
 
+        $paradasReales=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('secid')->get()->toArray();
+        if(!isset($paradasReales)){
+            $paradasReales=Array();
+        }
 
-        return view('reporteNuevoSistema/cex/monitoreo/dashboard',compact('status_gps_On','status_gps_Off','appCloseStatus_Off','appCloseStatus_On','cambio_hora_Off','cambio_hora_On','zona_horaria_Off','zona_horaria_On','paradas','datos','apps','paradasDirecciones'));
+        $datosObjs=tbl_auditoria_dispositivos::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('dttimeupdate',$fecha)->where('imei',$imei)->orderBy('dttimeupdate','ASC')->get()->toArray();
+        $datos=Array();
+        if (isset($datosObjs)){
+            foreach ($datosObjs as $datosObj){
+                array_push($datos,$datosObj);
+            }
+        }
+
+        $apps=tbl_api_cobefec::whereDate('created_at',$fecha)->where('imei',$imei)->whereNotNull('extras')->orderBy('secuencia')->first(['extras']);
+        if (isset($apps)){
+            $apps=json_decode($apps['extras'],true);
+        }else{
+            $apps=Array();
+
+        }
+
+        return compact('paradas','datos','apps','paradasReales','asesor');
+    }
+
+    public function paradasCexMapaG($fecha,$imei)
+    {
+        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
+        $paradas=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('id')->get()->toArray();
+        if(!isset($paradas)){
+            $paradas=Array();
+        }
+        return $paradas;
+    }
+
+    public function refreshCexGps($imei,$fecha)
+    {
+        $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
+        $latlng=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('imei',$imei)->where('direccion',null)->orderBy('secid')->get(['latitud','longitud']);
+        if(!isset($latlng)){
+            $latlng=Array();
+        }
+        return $latlng;
     }
 
     public function  calculoDistanciaCex(Request $request)
     {
-        $coordenadas=tbl_api_cobefec::where('imei',$request->imei)->whereDate('update_time',$request->update_time)->where('asyncStatus',0)->orderBy('id','DESC')->orderBy('secid','DESC')->limit(2)->get();
+        $coordenadas=tbl_api_cobefec::where('imei',$request->imei)->whereDate('update_time',$request->update_time)->orderBy('id','DESC')->orderBy('secid','DESC')->limit(2)->get();
 
         $point1=Array();
         $point2=Array();
@@ -1645,29 +1446,12 @@ from cobefec_reportes.zonificacion_cex z
 
     public function rMonitoreo(Request $request)
     {
-        $gestores=tbl_users::whereIn('id',tbl_executives::whereNull('deleted_at')->get(['user_id']))->where('enabled',1)->whereNull('deleted_at')->pluck("email","id")->all();
-
-        $fecha_inicio=$request->fecha_inicio;
-        $fecha=Carbon::createFromFormat('d/m/Y', $request->fecha_inicio)->format('Y-m-d');
+        $fecha_inicio=Carbon::createFromFormat('d/m/Y', $request->fecha_inicio)->format('Y-m-d');
 
         $gestors=tbl_users::whereIn('id',tbl_executives::whereNull('deleted_at')->get(['user_id']))->where('enabled',1)->whereNull('deleted_at')->pluck("email","id")->all();
-        $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
-        $idsp=0;
-        foreach ($dispositivos as $dispositivo) {
-            $api_cobefec = tbl_api_cobefec::where('imei', $dispositivo['imei'])->whereDate('created_at', $fecha)->where('asyncStatus', 0)->orderBy('id', 'DESC')->first();
+        $dispositivos=monitoreoCexOnline($fecha_inicio);
 
-            $dispositivos[$idsp]['tiempo_parado'] = '';
-            $dispositivos[$idsp]['distancia'] = '';
-            $dispositivos[$idsp]['bateria_porcentaje'] = '';
-            $dispositivos[$idsp]['alerta'] = '';
-            $dispositivos[$idsp]['alerta_mensaje'] = '';
-            $dispositivos[$idsp]['status_gps'] = '';
-            $dispositivos[$idsp]['status_hora'] = '';
-
-            $idsp++;
-        }
-
-        return view('reporteNuevoSistema/cex/monitoreo/index2', compact('gestores','gestors','dispositivos','api_cobefec','fecha_inicio','fecha'));
+        return view('reporteNuevoSistema/cex/monitoreo/index2', compact('gestors','dispositivos','api_cobefec','fecha_inicio'));
     }
 
     public function rParametrosCex()
@@ -2009,6 +1793,9 @@ function cumplimientoQuery7($marca){
         case 'Diners Legal':
             $marca = 10;
             break;
+        case 'Equifax':
+            $marca = 6;
+            break;
     }
 
     $query="select d.action status, count(*) visitas, 
@@ -2049,6 +1836,9 @@ function cumplimientoQuery8($marca){
         case 'Diners Legal':
             $marca = 10;
             break;
+        case 'Equifax':
+            $marca = 6;
+            break;
     }
 
     $query="SELECT if(a1.contact_type='CD','CONTACTO DIRECTO',if(a1.contact_type='CI','CONTACTO INDIRECTO',if(a1.contact_type='NC','NO CONTACTADO',''))) tipo, count(*) visitas,
@@ -2085,6 +1875,9 @@ function cumplimientoQuery9($marca){
             break;
         case 'Diners Legal':
             $marca = 10;
+            break;
+        case 'Equifax':
+            $marca = 6;
             break;
     }
 
@@ -2134,6 +1927,9 @@ function cumplimientoQuery10($marca){
         case 'Diners Legal':
             $marca = 10;
             break;
+        case 'Equifax':
+            $marca = 6;
+            break;
     }
 
     $query="select a1.ejecutivo_cex gestor, a.target_document codigo,
@@ -2171,6 +1967,9 @@ function cumplimientoQuery11($marca){
             break;
         case 'Diners Legal':
             $marca = 10;
+            break;
+        case 'Equifax':
+            $marca = 6;
             break;
     }
 
@@ -2214,3 +2013,178 @@ function distanceCalculation($point1_lat, $point1_long, $point2_lat, $point2_lon
 }
 
 
+function monitoreoCexOnline($fecha){
+    $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
+    $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
+    $idispositivos=0;
+
+    foreach ($dispositivos as $dispositivo){
+        $imeis=tbl_api_cobefec::whereDate('created_at',$fecha)->where('referencia',0)->where('calculado',0)->where('asyncStatus', 0)->where('imei',$dispositivo['imei'])->get(['id','bateria_porcentaje','latitud','longitud','secuencia','imei','created_at','update_time']);
+
+        if(count($imeis)==0){
+            $imei = tbl_api_cobefec::whereDate('created_at', $fecha)->where('asyncStatus', 0)->where('imei', $dispositivo['imei'])->orderBy('id', 'DESC')->first();
+            if ($imei != null){
+                $fecha1 = new \DateTime($imei->hora_inicio);//fecha inicial
+                $fecha2 = new \DateTime();//fecha de cierre
+                $intervalo = $fecha2->diff($fecha1);
+
+                $imei->tiempo_parado = $intervalo->format('%H:%I:%S');
+                $imei->save();
+            }
+        }else {
+            $ultima_referencia = tbl_api_cobefec::whereDate('created_at', $fecha)->where('asyncStatus', 0)->where('calculado', 1)->where('referencia', 1)->where('ultima_referencia', 1)->where('imei', $dispositivo['imei'])->get(['id', 'ultima_referencia', 'latitud', 'longitud', 'update_time'])->first();
+
+            if ($ultima_referencia == null) {
+                $ultima_referencia = tbl_api_cobefec::find($imeis[0]['id']);
+                $ultima_referencia->referencia = 1;
+                $ultima_referencia->ultima_referencia = 1;
+                $ultima_referencia->save();
+            }
+            if (count($imeis) > 0) {
+                foreach ($imeis as $imei) {
+                    $distancia = distanceCalculation($ultima_referencia->latitud, $ultima_referencia->longitud, $imei['latitud'], $imei['longitud']);
+
+                    $api_cbc = tbl_api_cobefec::find($imei['id']);
+                    $api_cbc->distancia = $distancia;
+                    $api_cbc->save();
+
+                    $fecha1 = new \DateTime($ultima_referencia->update_time);//fecha inicial
+                    $fecha2 = new \DateTime($imei['update_time']);//fecha de cierre
+                    $intervalo = $fecha2->diff($fecha1);
+
+                    if ($distancia <= $configuracion->distancia) {
+                        $api = tbl_api_cobefec::find($imei['id']);
+                        $api->calculado = 1;
+                        $api->save();
+
+                        if ($intervalo->format('%H%i') > $configuracion->tiempo_parada) {
+                            //echo 'Lleva '.$created->diff($now)->i.' minutos parados. Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
+                            $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
+                            $dispositivos[$idispositivos]['alerta'] = 'alert alert-danger';
+
+                            $paradas_recorrido = new tbl_paradas_recorrido();
+                            $paradas_recorrido->id_api = $imei['id'];
+                            $paradas_recorrido->id_dispositivo = $dispositivo['id'];
+                            $paradas_recorrido->id_parada_configuracion = $configuracion->id;
+                            $paradas_recorrido->distancia = $distancia;
+                            $paradas_recorrido->hora = $imei['update_time'];
+                            $paradas_recorrido->tiempo_detenido = $intervalo->format('%i');
+                            $paradas_recorrido->hora_salida = '';
+                            $paradas_recorrido->tiempo_recorrido = '';
+                            $paradas_recorrido->kms = '';
+                            $paradas_recorrido->ciudad = '';
+                            $paradas_recorrido->direccion = '';
+                            $paradas_recorrido->save();
+
+                        } else {
+                            $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
+                            $dispositivos[$idispositivos]['alerta'] = '';
+                            //echo 'Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
+                        }
+                        $api_cbc = tbl_api_cobefec::find($imei['id']);
+                        $api_cbc->hora_fin = $fecha2;
+                        $api_cbc->hora_inicio = $fecha1;
+                        $api_cbc->tiempo_parado = $intervalo->format('%H:%I:%S');
+                        $api_cbc->distancia = $distancia;
+                        $api_cbc->save();
+                        $idispositivos++;
+                    } else {
+                        $ultima_referencia->ultima_referencia = 0;
+                        $ultima_referencia->save();
+
+                        $api = tbl_api_cobefec::find($imei['id']);
+                        $api->calculado = 1;
+                        $api->referencia = 1;
+                        $api->hora_fin = $fecha2;
+                        $api->hora_inicio = $fecha1;
+                        $api->tiempo_parado = $intervalo->format('%H:%I:%S');
+                        $api->ultima_referencia = 1;
+                        $api->save();
+                        $ultima_referencia = tbl_api_cobefec::find($api->id);
+                    }
+                    /*$dispositivos[$idispositivos]['id_api']=$imei['id'];
+                    $dispositivos[$idispositivos]['id_dispositivo']=$dispositivo['id'];
+                    $dispositivos[$idispositivos]['id_parada_configuracion']=$configuracion->id;
+                    $dispositivos[$idispositivos]['hora']='';
+                    $dispositivos[$idispositivos]['tiempo_detenido']=$intervalo->format('%i');
+                    $dispositivos[$idispositivos]['hora_salida']='';
+                    $dispositivos[$idispositivos]['tiempo_recorrido']='';
+                    $dispositivos[$idispositivos]['kms']='';
+                    $dispositivos[$idispositivos]['ciudad']='';
+                    $dispositivos[$idispositivos]['direccion']='';*/
+                }
+            }
+        }
+    }
+
+
+    $gestors=tbl_users::whereIn('id',tbl_executives::whereNull('deleted_at')->get(['user_id']))->where('enabled',1)->whereNull('deleted_at')->pluck("email","id")->all();
+    $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
+    $dispositivosfs=Array();
+    $idsp=0;
+    foreach ($dispositivos as $dispositivo){
+        $api_cobefec=tbl_api_cobefec::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->orderBy('id','DESC')->first();
+        if ($api_cobefec != null){
+            $fecha1 = new \DateTime($api_cobefec->tiempo_parado);//fecha inicial
+            $fecha2 = new \DateTime(date('Y:m:d ').$configuracion->time_out);//fecha cierre
+            $intervalo = $fecha2->diff($fecha1);
+
+            if ($fecha1>$fecha2){
+                $dispositivos[$idsp]['alerta']='alert alert-danger';
+                $dispositivos[$idsp]['alerta_mensaje']='SUPERO EL TIEMPO DE PARADA';
+            }else{
+                $dispositivos[$idsp]['alerta']='primary';
+                $dispositivos[$idsp]['alerta_mensaje']='';
+            }
+
+
+            $dispositivos[$idsp]['tiempo_parado']=$api_cobefec->tiempo_parado;
+            $dispositivos[$idsp]['distancia']=$api_cobefec->distancia;
+            $dispositivos[$idsp]['bateria_porcentaje']=$api_cobefec->bateria_porcentaje."%";
+
+            $gpsStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('status_gps')->orderBy('dttimeupdate','DESC')->first();
+            $dispositivos[$idsp]['status_gps']="ACTIVO";
+            if(isset($gpsStatus->status_gps)){
+                if($gpsStatus->status_gps==1){
+                    $dispositivos[$idsp]['status_gps']="ACTIVO";
+                }elseif($gpsStatus->status_gps==0){
+                    $dispositivos[$idsp]['status_gps']="INACTIVO";
+                    $dispositivos[$idsp]['alerta_mensaje'].=' // SIN SEÑAL POSIBLEMENTE DESACTIVO EL GPS';
+                }
+            }
+            $appStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('appStatus')->orderBy('dttimeupdate','DESC')->first();
+            $dispositivos[$idsp]['appStatus']="ACTIVO";
+            if(isset($appStatus->appStatus)){
+                if($appStatus->appStatus==1){
+                    $dispositivos[$idsp]['appStatus']="ACTIVO";
+                }elseif($appStatus->appStatus==0){
+                    $dispositivos[$idsp]['appStatus']="INACTIVO";
+                    $dispositivos[$idsp]['alerta_mensaje'].=' // APAGO EL DISPOSITIVO';
+                }
+            }
+            $dispositivos[$idsp]['status_hora']="-";
+        }else{
+
+            $dispositivos[$idsp]['tiempo_parado']='';
+            $dispositivos[$idsp]['distancia']='';
+            $dispositivos[$idsp]['bateria_porcentaje']='';
+            $dispositivos[$idsp]['alerta']='danger';
+            $dispositivos[$idsp]['alerta_mensaje']='Sin Novedad';
+            $dispositivos[$idsp]['appStatus']="INACTIVO";
+            $dispositivos[$idsp]['status_gps']="INACTIVO";
+            $dispositivos[$idsp]['status_hora']="-";
+
+            array_push($dispositivosfs,$dispositivos[$idsp]);
+            unset($dispositivos[$idsp]);
+
+        }
+        $idsp++;
+    }
+    foreach ($dispositivosfs as $dispositivosf){
+        array_push($dispositivos,$dispositivosf);
+    }
+
+    //dd($dispositivos);
+
+    return $dispositivos;
+}

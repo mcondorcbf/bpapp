@@ -30,7 +30,7 @@ class ReportesBelcorpController extends Controller
 
     public function gCuentasBelcorp(Request $request)
     {
-        $campana=implode(',',$request->id_campana);
+        if(is_array($request->id_campana)){$campana=implode(',',$request->id_campana);}else{$campana=$request->id_campana;}
         $cuentash='';
         if ($request->cuentasInhabilitadas==1){$cuentash='';}else{$cuentash=' and a.enabled=1 ';}
 
@@ -212,7 +212,7 @@ and b.id=3 and c.id in(".$campana.")".$cuentash.";
             }
             $campana=$sql[0]->name;
         }else{
-            $campana='VARIAS CAMPAÑAS';
+            $campana='VARIAS CAMPAÃ‘AS';
         }
 
 
@@ -237,9 +237,9 @@ and b.id=3 and c.id in(".$campana.")".$cuentash.";
         $cuentash='';
         if ($request->cuentasInhabilitadas2==1){}else{$cuentash=' and a.enabled=1 ';}
 
-        $query="select b.name MARCA, c.name CAMPAÑA, a.data ->> '$.region' REGION, a.data ->> '$.zona' ZONA, a.target_document DOCUMENTO, a.data ->> '$.nombres' NOMBRE_CLIENTE, a.to_recover DEUDA_INICIAL, a.recovered DEUDA_ACTUAL, (a.to_recover - a.recovered) RECUPERACION,
+        $query="select b.name MARCA, c.name CAMPAÃ‘A, a.data ->> '$.region' REGION, a.data ->> '$.zona' ZONA, a.target_document DOCUMENTO, a.data ->> '$.nombres' NOMBRE_CLIENTE, a.to_recover DEUDA_INICIAL, a.recovered DEUDA_ACTUAL, (a.to_recover - a.recovered) RECUPERACION,
 if(d.contact_type='CD','CONTACTO DIRECTO',if(d.contact_type='CI','CONTACTO INDIRECTO','NO CONTACTADO')) CONTACTO_TIPO, d.action TIPO, d.sub_action SUB_TIPO, d.description DESCRIPCION, d.agent AGENTE, d.original_demarche ORIGINAL_GESTION, d.type TIPO_GESTION,
-d.tlc_time TLC_HORA, d.contact_type CONTACTO_TIPO_GESTION ,   d.phone TELEFONO, date(d.created_at) CREADO, c.date_init CAMPAÑA_FECHA_INICIO, c.date_end CAMPAÑA_FECHA_FIN, ifnull(d.extra ->> '$.relationship','') RELATIONSHIP, ifnull(d.extra ->> '$.call_again','')  CALL_AGAIN, ifnull(a.pp_date,'') PP_FECHA, ifnull(a.pp_amount,'')  PP_AMOUNT 
+d.tlc_time TLC_HORA, d.contact_type CONTACTO_TIPO_GESTION ,   d.phone TELEFONO, date(d.created_at) CREADO, c.date_init CAMPAÃ‘A_FECHA_INICIO, c.date_end CAMPAÃ‘A_FECHA_FIN, ifnull(d.extra ->> '$.relationship','') RELATIONSHIP, ifnull(d.extra ->> '$.call_again','')  CALL_AGAIN, ifnull(a.pp_date,'') PP_FECHA, ifnull(a.pp_amount,'')  PP_AMOUNT 
 from cobefec3.brands b, cobefec3.products p, cobefec3.campaigns c, cobefec3.accounts a, cobefec3.demarches d
 where b.id=p.brand_id and p.id=c.product_id and c.id=a.campaign_id and a.id=d.account_id
 and c.id in(".$campana.")".$cuentash.";
@@ -269,7 +269,7 @@ and c.id in(".$campana.")".$cuentash.";
             }
             $campana=$sql[0]->name;
         }else{
-            $campana='VARIAS CAMPAÑAS';
+            $campana='VARIAS CAMPAÃ‘AS';
         }
 
         try{
@@ -281,5 +281,57 @@ and c.id in(".$campana.")".$cuentash.";
         }catch(\Exception $e){
             return $e->getMessage();
         }
+    }
+
+    public function recuperacion(Request $request)
+    {
+
+        //$campana=implode(',',$request->id_campana3);
+        $cuentash='';
+        $campana=tbl_campaigns::find($request->id_campana3[0]);
+        if ($request->cuentasInhabilitadas3==1){}else{$cuentash=' and a.enabled=1 ';}
+        try{DB::connection('cobefec3')->statement("drop table cobefec_reportes.bc_tmp_recuperacion;");
+
+        }catch (\Exception $exception){
+            return $exception->getMessage();
+        }
+        try{DB::connection('cobefec3')->statement("create table cobefec_reportes.bc_tmp_recuperacion
+select ifnull((SELECT concat(u1.first_name,' ',u1.last_name) FROM cobefec3.accounts a1, cobefec3.agents ag1, cobefec3.users u1 where ag1.id=a1.current_agent and u1.id=ag1.user_id and a1.id=a.id),'SIN ASIGNAR') gestores,
+a.data ->> '$.region' region, count(b.name) no_cuentas, round(sum(a.to_recover),2) asignacion, round(sum(a.recovered),2) pendiente, round(sum(a.to_recover-a.recovered),2) recuperacion,
+round((round(sum(a.to_recover-a.recovered),2)*100)/(round(sum(a.to_recover),2)),2) porcentaje_recuperacion
+from cobefec3.brands b, cobefec3.products p, cobefec3.campaigns c, cobefec3.accounts a
+where b.id=p.brand_id and p.id=c.product_id and c.id=a.campaign_id
+and b.id=3 and p.id=6 and c.id = (".$campana->id.") ".$cuentash."
+group by 1,2
+;
+");
+
+        }catch (\Exception $exception){
+            return $exception->getMessage();
+        }
+
+        try{
+            $reportes = DB::connection('cobefec3')->select("select r.*, (r.porcentaje_recuperacion-(select max(porcentaje_recuperacion) from cobefec_reportes.bc_tmp_recuperacion)) brecha
+from cobefec_reportes.bc_tmp_recuperacion r;
+");
+            $reportes = json_decode(json_encode($reportes),true);
+        }catch (\Exception $exception){
+            return $exception->getMessage();
+        }
+
+
+        return view('reporteNuevoSistema/belcorp/table/tableRecuperacion', compact('reportes'));
+
+        try{
+            \Excel::create('BELCORP REPORTE DE RECUPERACION CAMPANA '.$campana->name." DESCARGADO EL ".date('d-m-Y His'), function($excel) use (&$reportes){
+                $excel->sheet('RECUPERACION', function($sheet) use($reportes) {
+                    $sheet->loadView('reporteNuevoSistema/belcorp/table/tableRecuperacion')->with('reportes',$reportes);
+                });
+            })->export('xlsx');
+
+        }catch(\Exception $e){
+            return $e->getMessage();
+        }
+
     }
 }

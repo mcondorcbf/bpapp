@@ -11,11 +11,11 @@
     <title>Sistema de procesos COBEFEC</title>
 
     <!-- Styles -->
-    <link href="/css/app.css" rel="stylesheet">
+
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="/css/jquery.dataTables.min.css"/>
 
-    <script type="text/javascript" src="/js/jquery-1.12.4.js"></script>
+
     <script type="text/javascript" src="/js/jquery-1.12.4.min.js"></script>
     @yield('scripts')
 

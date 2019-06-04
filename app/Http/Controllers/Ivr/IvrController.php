@@ -1083,7 +1083,7 @@ class IvrController extends Controller
                 $ivrprocesos[$i]['total'] = $total;
                 if ($porcentajeavance==100){
                     $id_carga=id_carga::where('id_carga',$k['id_carga'])->first();
-                    if (count($id_carga)>0){
+                    if (isset($id_carga)){
                         $id_carga->estado=0;
                         $id_carga->save();
                     }
@@ -1135,6 +1135,7 @@ class IvrController extends Controller
 
                 $cargaIndexada=id_carga::find($k['id_carga']);
                 if ($cargaIndexada->porcentaje_indexado<100){
+                    //SOLO APLICA PARA ATM
                     if ($cargaIndexada->campaniaIvr->clienteIvr->id_cliente == 11) {
                         //SELECT count(*) from asteriskcdrdb.tbl_carga_ivr_federada where id_carga=5175 and estado_indexado=1;
                         $ivrfinalizados[$i]['indexados'] = round(((carga::where('id_carga',$k['id_carga'])->where('estado_indexado',1)->count())/(carga::where('id_carga',$k['id_carga'])->count()))*100,2);
@@ -1152,6 +1153,7 @@ class IvrController extends Controller
                     }else{
                         $ivrfinalizados[$i]['indexados'] = 'No aplica';
                     }
+                    // FIN SOLO APLICA PARA ATM
                 }else{
                     $ivrfinalizados[$i]['indexados'] = '100%';
                 }

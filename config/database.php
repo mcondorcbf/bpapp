@@ -68,7 +68,7 @@ return [
 
         'ivrs' => [
             'driver' => 'mysql',
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => env('IVRS_HOST', '172.16.21.35'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('IVRS_DATABASE', 'bddivrs'),
             'username' => env('IVRS_USERNAME', 'root'),
@@ -420,7 +420,7 @@ return [
 
         'apiRest' => [
             'driver' => 'mysql',
-            'host' => env('APIREST_HOST', '127.0.0.1'),
+            'host' => env('APIREST_HOST', '172.16.21.35'),
             'port' => env('APIREST_PORT', '3306'),
             'database' => env('APIREST_DATABASE', 'bddapirest'),
             'username' => env('APIREST_USERNAME', 'root'),

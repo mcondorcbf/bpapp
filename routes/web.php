@@ -316,6 +316,7 @@ Route::post('/rRecuperacion', 'ReportesNuevoSistema\ReportesBcoGuayaquilControll
 //BELCORP
 Route::get('/rBelcorp', 'ReportesNuevoSistema\ReportesBelcorpController@reportes');
 Route::post('/rBGeneral', 'ReportesNuevoSistema\ReportesBelcorpController@generalCuentas');
+Route::post('/rBRecuperacion', 'ReportesNuevoSistema\ReportesBelcorpController@recuperacion');
 Route::post('/gCuentasBelcorp', 'ReportesNuevoSistema\ReportesBelcorpController@gCuentasBelcorp');
 Route::post('/rBHistorial', 'ReportesNuevoSistema\ReportesBelcorpController@historialGestiones');
 
@@ -404,7 +405,12 @@ Route::get('/monitoreoCexRes', 'ReportesNuevoSistema\ReportesCexController@monit
 Route::post('/monitoreoCexRes', 'ReportesNuevoSistema\ReportesCexController@monitoreoCexResPost');
 Route::get('/monitoreoCex', 'ReportesNuevoSistema\ReportesCexController@monitoreoCex');
 Route::get('/mapaCex/{cedula}/{fecha}', 'ReportesNuevoSistema\ReportesCexController@monitoreoCexMapa');
+Route::get('/mapaCexTotal/{cedula}/{fecha}', 'ReportesNuevoSistema\ReportesCexController@monitoreoCexMapaTotal');
 Route::get('/dashCex/{cedula}/{imei}', 'ReportesNuevoSistema\ReportesCexController@dashboardCexMapa');
+Route::get('/dashCexG/{cedula}/{imei}', 'ReportesNuevoSistema\ReportesCexController@dashboardCexMapaG');
+Route::get('/paradasCexG/{cedula}/{imei}', 'ReportesNuevoSistema\ReportesCexController@paradasCexMapaG');
+Route::get('/refreshCexGps/{imei}/{fecha}', 'ReportesNuevoSistema\ReportesCexController@refreshCexGps');
+
 Route::post('/rMonitoreo', 'ReportesNuevoSistema\ReportesCexController@rMonitoreo');
 Route::post('/calculoDistanciaCex', 'ReportesNuevoSistema\ReportesCexController@calculoDistanciaCex');
 Route::get('/rParametrosCex', 'ReportesNuevoSistema\ReportesCexController@rParametrosCex');

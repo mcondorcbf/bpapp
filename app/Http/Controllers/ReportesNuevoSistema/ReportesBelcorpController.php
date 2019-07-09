@@ -318,9 +318,7 @@ from cobefec_reportes.bc_tmp_recuperacion r;
         }catch (\Exception $exception){
             return $exception->getMessage();
         }
-
-
-        return view('reporteNuevoSistema/belcorp/table/tableRecuperacion', compact('reportes'));
+        //return view('reporteNuevoSistema/belcorp/table/tableRecuperacion', compact('reportes'));
 
         try{
             \Excel::create('BELCORP REPORTE DE RECUPERACION CAMPANA '.$campana->name." DESCARGADO EL ".date('d-m-Y His'), function($excel) use (&$reportes){

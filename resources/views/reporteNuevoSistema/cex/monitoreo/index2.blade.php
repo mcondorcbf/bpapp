@@ -55,12 +55,6 @@
         } );
     } );
 
-    $(document).ready(function() {
-        $('#example-getting-started').multiselect({
-            includeSelectAllOption: true,
-            enableFiltering: true
-        });
-    });
 
 </script>
 
@@ -71,7 +65,6 @@
         width: 100%;
         height: 100%;
         z-index: 9999;
-
         opacity: .8;
     }
 </style>
@@ -173,10 +166,10 @@
                                 <div class="col-md-6 col-lg-6" id="datosD" style="display: none; overflow: scroll; height: 780px;">
                                     <ul class="nav nav-pills" id="myTab" role="tablist">
                                         <li class="nav-item active">
-                                            <a class="nav-link" id="paradas-tab" data-toggle="tab" href="#paradas" role="tab" aria-controls="paradas" aria-selected="true" onclick="datosMapa()">PARADAS</a>
+                                            <a class="nav-link" id="paradas_reales-tab" data-toggle="tab" href="#paradas_reales" role="tab" aria-controls="paradas_reales" aria-selected="true" onclick="datosMapaTotal()">RECORRIDO TOTAL</a>
                                         </li>
                                         <li class="nav-item">
-                                            <a class="nav-link" id="paradas_reales-tab" data-toggle="tab" href="#paradas_reales" role="tab" aria-controls="paradas_reales" aria-selected="true" onclick="datosMapaTotal()">RECORRIDO TOTAL</a>
+                                            <a class="nav-link" id="paradas-tab" data-toggle="tab" href="#paradas" role="tab" aria-controls="paradas" aria-selected="true" onclick="datosMapa()">PARADAS</a>
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link" id="aplicaciones-tab" data-toggle="tab" href="#aplicaciones" role="tab" aria-controls="aplicaciones" aria-selected="false">APLICACIONES INSTALADAS</a>
@@ -285,7 +278,7 @@
     </div>
 </div>
 <div id="map"></div>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXr_yzUGbJnS1ZumWl2c5QQSf4vJ4gGpc&callback=initMap"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXr_yzUGbJnS1ZumWl2c5QQSf4vJ4gGpc"></script>
 <script type="text/javascript">
     setInterval("refresh()", 5000);
     var simei='';
@@ -324,8 +317,8 @@
         $("#loading-image").show('slow');
 
         //MAPA
-        var url = 'mapaCex/'+cedula+'/'+fecha;
-        if (url=='mapaCex/undefined'){return true;}
+        var url = 'mapaCexTotal/'+cedula+'/'+fecha;
+        if (url=='mapaCexTotal/undefined'){return true;}
         console.log(url);
         $('#iframe').attr('src', url);
         $('#iframe').attr('height', 800);
@@ -418,8 +411,8 @@
 
                     if(item["zona_horaria"]=='1'){zona_horaria='Hubo un cambio de hora: '+item["dttimeupdate"];}
 
-                    if(item["status_gps"]=='0'){status_gps='Gps Encendido';}
-                    if(item["status_gps"]=='1'){status_gps='Gps Apagado';}
+                    if(item["status_gps"]=='1'){status_gps='Gps Encendido';}
+                    if(item["status_gps"]=='0'){status_gps='Gps Apagado';}
 
                     if(item["appstatus"]==null && item["appnetcondata"]==null){appnetcondata='Sin Cobertura';}
                     if(item["appstatus"]==null && item["appnetcondata"]=='1'){appnetcondata='Con conbertura';}
@@ -515,20 +508,69 @@
                     geocoder.geocode({'location': latlng}, function(results, status) {
                         if (status === 'OK') {
                             if (results[0]) {
-                                //console.log('resultado: '+results[0].formatted_address);
-                                var resultado=results[0].formatted_address
-                                console.log('resultado: '+results[0].formatted_address);
-
+                                var token = $("input[name='_token']").val();
+                                $.ajax({
+                                    type: "POST",
+                                    url: "{{url('/guardaDireccionesCex')}}",
+                                    data:  {_token: token , direccion: results[0].formatted_address , id: item['id'] },
+                                    success: function(data) {
+                                        console.log(data);
+                                    }
+                                });
+                                console.log(results[0].formatted_address);
                             } else {
                                 console.log('No results found');
                             }
                         } else {
-                            console.log('Geocoder failed due to: ' + status );
+                            console.log('Geocoder failed due to: ' + status + ' - '+item['id']);
                         }
                     });
                 });
+                tablas(sfecha,simei);
             }
         });
+    }
+
+    function tablas(fecha,imei) {
+        url = 'dashCexG/'+fecha+'/'+imei;
+        console.log(url);
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType:"json",
+            beforeSend: function() {
+
+                $("#tbParadas").empty();
+                $("#tbParadasReales").empty();
+
+
+            },
+            success: function (data) {
+                //$("#data2").empty();
+                simei=data['asesor']["imei"];
+                sfecha=fecha;
+
+                var i=1;
+                var direccion='';
+                $.each(data['paradas'], function (key, item) {
+
+                    if(item["direccion"]!=null){direccion=item["direccion"];}else{direccion='';}
+
+                    $("#tbParadas").append('<tr><td>'+item["secuencia"]+'</td>  <td>'+item["hora_inicio"]+'</td>   <td>'+item["hora_fin"]+'</td> <td>'+item["tiempo_parado"]+'</td> <td>'+item["distancia"]+'</td> <td>'+direccion+'</td></tr>');
+                });
+                var i=1;
+                $.each(data['paradasReales'], function (key, item) {
+                    if(item["direccion"]!=null){direccion=item["direccion"];}else{direccion='';}
+
+                    if (item["asyncstatus"]=='1'){
+                        $("#tbParadasReales").append('<tr><td>'+item["secuencia"]+'</td> <td> '+item["created_at"]+' </td>   <td> Dato Offline  </td> <td> Dato Offline </td> <td> Dato Offline </td> <td> '+direccion+' </td></tr>');
+                    }else{
+                        $("#tbParadasReales").append('<tr><td>'+item["secuencia"]+'</td>  <td>'+item["hora_inicio"]+'</td>   <td>'+item["hora_fin"]+'</td> <td>'+item["tiempo_parado"]+'</td> <td>'+item["distancia"]+'</td> <td>'+direccion+'</td></tr>');
+                    }
+                });
+            }
+        });
+
     }
 
 </script>

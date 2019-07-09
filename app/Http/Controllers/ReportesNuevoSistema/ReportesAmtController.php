@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\reportesNuevoSistema;
 
 use App\reportesNuevoSistema\tbl_campaigns;
+use App\reportesNuevoSistema\tbl_products;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;

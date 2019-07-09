@@ -84,24 +84,47 @@ class SendIvrs extends Command
             $horaInicio='08:00:00';
             $horaFin='18:00:00';
         }
+        if($sabado==0){
+            dd('fin');
+        }
         echo "\n Sabado es 6 : ".$sabado." - ".$horaInicio." - ".$horaFin."\n";
 
         $finalizar=1;
+        echo "\nid_carga de ATM: ".count($id_carga)."\n";
         if (count($id_carga)>0){
-            echo "\nFecha inicio: ".$fecha_actual." - ".date('Y-m-d ').$horaInicio."\n";
+            echo "\nFecha inicio: ".$fecha_actual." - ".date('Y-m-d ').$horaInicio;
             echo "\nFecha fin: ".$fecha_actual." - ".date('Y-m-d ').$horaFin."\n";
             if (strtotime($fecha_actual)>strtotime(date('Y-m-d ').$horaInicio) && strtotime($fecha_actual)<strtotime(date('Y-m-d ').$horaFin)) {
                 echo "\n entro al if: ".$fecha_actual;
                 $id_carga = id_carga::where('estado', 1)->where('estado_aprobado', 1)->where('ejecucion', 1)->whereIn('id_campania',$idCampanas)->get();
                 enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOptions);
             }
+            if (count($id_carga_calendarizado)>0)
+
             if(strtotime($fecha_actual)>strtotime(date('Y-m-d').$horaFin)){
                 echo "\n entro al if para finalizar la campaña: ".$fecha_actual."\n\n";
                 $id_cargas = $id_carga;
                 foreach ($id_cargas as $id_carga){
-                    echo $id_carga;
-                    $id_carga->estado=0;
+                    if ($id_carga->calendarizado==1){
+                        echo "\n fecha calendarizado : ".$id_carga->fecha_inicio_envio." = ".strtotime($id_carga->fecha_inicio_envio)." :: fecha inicio ".date('Y-m-d ').$horaInicio." = ".strtotime(date('Y-m-d ').$horaInicio)." :: fecha fin ".date('Y-m-d ').$horaFin." = ".strtotime(date('Y-m-d ').$horaFin)."\n";
+                        if(strtotime($id_carga->fecha_inicio_envio)>strtotime(date('Y-m-d ').$horaInicio) && strtotime($id_carga->fecha_inicio_envio)<strtotime(date('Y-m-d ').$horaFin)){
+                            if(strtotime($fecha_actual)>strtotime(date('Y-m-d ').$horaInicio) && strtotime($fecha_actual)<strtotime(date('Y-m-d ').$horaFin)){
+                                echo "\nIvr calendarizado: ".$id_carga->id_carga." no finalizada. Fecha de envio: ".$id_carga->fecha_inicio_envio." :: fecha actual: ".$fecha_actual;
+                                $id_carga->estado=1;
+                            }else{
+                                echo "\nIvr calendarizado: ".$id_carga->id_carga." finalizada. Fecha de envio: ".$id_carga->fecha_inicio_envio." :: fecha actual: ".$fecha_actual;
+                                $id_carga->estado=0;
+                            }
+                        }elseif(strtotime($id_carga->fecha_inicio_envio)>strtotime(date('Y-m-d ').$horaFin)){
+                            echo "\nIvr calendarizado: ".$id_carga->id_carga." finalizada. Fecha de envio: ".$id_carga->fecha_inicio_envio." :: fecha actual: ".$fecha_actual;
+                            $id_carga->estado=1;
+                        }
+                    }else{
+                        echo "\nIvr no calendarizado: ".$id_carga->id_carga." no finalizada. Fecha de envio: ".$id_carga->fecha_inicio_envio." :: fecha actual: ".$fecha_actual;
+                        $id_carga->estado=0;
+                    }
                     $id_carga->save();
+                    echo "\n".$id_carga;
                 }
             }
         }
@@ -145,7 +168,7 @@ i.Fecha=(select max(Fecha) from cobefec_reportes.tbl_ivr_index where if(i.cuenta
 and i.estado_indexado=0 and id_carga=".$idc->id_carga.";";
                     try{
                         $reporte = DB::connection('cdr')->select($query);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         return $e->getMessage() . "\n";
                     }
                     $reporte = json_decode(json_encode($reporte), true);
@@ -168,12 +191,12 @@ and i.estado_indexado=0 and id_carga=".$idc->id_carga.";";
         $id_cargas=id_carga::where('estado',0)->whereNotNull('id_campania_sis_gest')->where('estado_indexado',0)->where('porcentaje_indexado',100)->get();
         echo "\nId carga ".$id_cargas;
         foreach ($id_cargas as $idc){
+
             if ($idc->campaniaIvr->clienteIvr->id_cliente==11){
+
                 if (count($idc)>0){
                     echo "\n\ningresa al metodo de indexacion por campana :".$idc->id_campania_sis_gest.": ".date('Y-m-d H:i:s');
-
                     subirGestionesPorCampana($idc->id_campania_sis_gest,$idc->id_carga);
-
                     echo "\nsale del metodo de indexacion por campana ".date('Y-m-d H:i:s');
                 }
             }
@@ -213,7 +236,7 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
     foreach ($id_carga_calendarizado as $k) {
         echo '\nCampana calendarizada: '.$k->id_carga;
         $fecha_calendarizada = Carbon::parse($k->fecha_inicio_envio);
-        if ($fecha_actual > $fecha_calendarizada) {
+        if (strtotime($fecha_actual) > strtotime($fecha_calendarizada)) {
             $k->ejecucion = 1;
             $k->save();
 
@@ -243,7 +266,7 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
     balanceoCanales($canales);
 
     if ($id_carga->count() > 0) {
-        for ($j = 1; $j <= 2; $j++) {
+        for ($j = 1; $j <= 1; $j++) {
             $maximo = 1;
             //
             echo "\nj:" . $j;
@@ -251,7 +274,15 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                 echo "\nid_carga: " . $k->id_carga . "\n";
                 $cantidad_s = (int)$k->canales;
                 echo "\ncantidad de canales de la campaña : " . $cantidad_s;
-                $carga = carga::where('id_carga', $k->id_carga)->where('estado', 1)->limit($cantidad_s)->get();
+                $carga = carga::where('id_carga', $k->id_carga)->where('estado', 1)->where('estado_seleccionado', 0)->limit($cantidad_s)->get();
+                if (count($carga) == 0) {
+                    $cantidad_s =
+                    $carga = carga::where('id_carga', $k->id_carga)->where('estado', 1)->where('estado_seleccionado', 1)->limit($cantidad_s)->get();
+                }
+                foreach ($carga as $c){
+                    $c->estado_seleccionado=1;
+                    $c->save();
+                }
                 echo "\ncarga tiene un total de: ".count($carga);
 
                 echo "\ntotal clientes: " . count($carga) . "\n";
@@ -261,11 +292,11 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                         $count++;
                         //$actualizar=carga::where('estado',0)->first();
                         if ($canales->canales > 30) {
-                            //mayor a 30 canales envia cada medio segundo
-                            usleep(500000);
-                        } else {
-                            //menos a 30 canales envia cada segundo
+                            //mayor a 30 canales envia cada segundo
                             sleep(1);
+                        } else {
+                            //menos a 30 canales envia cada 2 segundos
+                            sleep(2);
                         }
 
                         //$script=scripts::where('id_script',$key['id_script'])->first();
@@ -277,28 +308,43 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
 
 
                         $pamiClient = new PamiClient($pamiClientOptions);
-                        $pamiClient->open();
+                        try {
+                            $pamiClient->open();
+                        } catch (\Exception $e) {
+                            print "Error PAMI OPEN exception : " . $e->getMessage();
+                        }
+
 
                         if ($key['tiposcript'] == 1) {
-                            //INGRESO DE LA GESTION
-                            if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
-                                $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
-                            }
-                            //FIN INGRESO DE LA GESTION
+
                             $channel = 'Local/' . trim($key['telefono']) . '@from-internal';
                             $id_var = scripts::where('id_script', $key['id_script'])->first()->id_var;
-                            $originateMsg = new OriginateAction($channel);
+                            echo "\nInstancio el Originate.\n";
+                            try {
+                                $originateMsg = new OriginateAction($channel);
+                            } catch (\Exception $e) {
+                                print "Error PAMI exception: " . $e->getMessage();
+                            }
                             $originateMsg->setExtension('6001');
                             $originateMsg->setContext('app-ivrplay2');
                             $originateMsg->setTimeout('30000');
                             $originateMsg->setCallerId('1000');
                             $originateMsg->setVariable('VAR', $id_var);
                             $originateMsg->setVariable('ID_CARGA', $key->id_carga);
-                            $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $key->cargaIvr->id_campania_sis_gest . ',' . $key->cedula);
+                            $id_campania_sis_ges=$key->cargaIvr->id_campania_sis_gest ? $key->cargaIvr->id_campania_sis_gest : 0;
+                            $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $id_campania_sis_ges . ',' . $key->cedula);
                             $originateMsg->setVariable('CEDULA', $key->cedula);
                             $originateMsg->setAsync(true);
                             $originateMsg->setActionID(trim($key['telefono']) . '-' . $id_var);
-                            $response = $pamiClient->send($originateMsg);
+                            echo "\nEnviar el Originate.\n";
+                            try {
+                                $response = $pamiClient->send($originateMsg);
+                            } catch (\Exception $e) {
+                                print "Error PAMI exception send: " . $e->getMessage();
+                            }
+                            if (!isset($response)){dd("\nOCURRIO UN ERROR EL SERVER PAMI NO DEVOLVIO EL 'RESPONSE'");}
+
+
                             if ($response->isSuccess()) {
                                 $respuesta = "Ivr estatico Enviado Correctamente, espere unos segundos.!\n";
                                 echo $respuesta;
@@ -326,13 +372,13 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                                 //reemplazo el nombre de las variables con la palabra estatica variable nombre_variable al ser un demo
                                 $script = str_replace($coincidencias[0][$i][0], $key[$var[$i]], $script);
                             }
-                            //INGRESO DE LA GESTION
-                            if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
-                                $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
-                            }
-                            //FIN INGRESO DE LA GESTION
+
                             $channel = 'Local/' . trim($key['telefono']) . '@from-internal';
-                            $originateMsg = new OriginateAction($channel);
+                            try {
+                                $originateMsg = new OriginateAction($channel);
+                            } catch (\Exception $e) {
+                                print "Error PAMI exception: " . $e->getMessage();
+                            }
                             $originateMsg->setExtension('1001');
                             $originateMsg->setContext('@from-internal');
                             $originateMsg->setPriority('');
@@ -343,13 +389,22 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                             $originateMsg->setTimeout('30000');
                             $originateMsg->setCallerId('1000');
                             $originateMsg->setVariable('ID_CARGA', $key->id_carga);
-                            $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $key->cargaIvr->id_campania_sis_gest . ',' . $key->cedula );
+                            $id_campania_sis_ges=$key->cargaIvr->id_campania_sis_gest ? $key->cargaIvr->id_campania_sis_gest : 0;
+                            $originateMsg->setVariable('ID_CAMPANIA_SIS_GEST', $id_campania_sis_ges . ',' . $key->cedula);
                             $originateMsg->setVariable('CEDULA', $key->cedula);
                             $originateMsg->setAsync(true);
                             $originateMsg->setActionID(trim($key['telefono']));
-                            $response = $pamiClient->send($originateMsg);
+                            echo "\nEnviar el Originate.\n";
+                            try {
+                                $response = $pamiClient->send($originateMsg);
+                            } catch (\Exception $e) {
+                                print "Error PAMI exception send: " . $e->getMessage();
+                            }
+                            if (!isset($response)){dd("\nOCURRIO UN ERROR EL SERVER PAMI NO DEVOLVIO EL 'RESPONSE'");}
+
+
                             if ($response->isSuccess()) {
-                                $respuesta = "Ivr dinámico Enviado Correctamente!\n";
+                                $respuesta = "Ivr estatico Enviado Correctamente, espere unos segundos.!\n";
                                 echo $respuesta;
                             } else {
                                 $respuesta = "Envío Fallido!\n";
@@ -357,15 +412,25 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                             echo "\nRespuesta: " . $respuesta . " - " . $key['tiposcript'] . " - SCRIPT: " . $script;
                             //Log::info("\nCount: ".$count." - Respuesta: ".$respuesta." - ".$key['tiposcript']." - SCRIPT: ".$script);
                         }
-                        $pamiClient->close();
+                        try {
+                            $pamiClient->close();
+                        } catch (\Exception $e) {
+                            print "Error PAMI CLOSE exception : " . $e->getMessage();
+                        }
 
-                        $maximo++;
-                        $key->estado = 0;
-                        //INGRESO DE LA GESTION
+                        //SUBIR GESTION AL SISTEMA DE GESTION
+                        if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
+                            $id_gestion=subirGestion($key,$key->cargaIvr->id_campania_sis_gest);
+                            echo "\nIngreso una gestion ATM: ".$id_gestion."\n";
+                        }
+                        //FIN SUBIR GESTION AL SISTEMA DE GESTION
+                        //INGRESO EL ID DE GESTION RESULTANTE
                         if ($key->cargaIvr->campaniaIvr->clienteIvr->id_cliente==11){
                             $key->id_gestion_original=$id_gestion;
                         }
-                        //FIN INGRESO DE LA GESTION
+                        //FIN INGRESO EL ID DE GESTION RESULTANTE
+                        $maximo++;
+                        $key->estado = 0;
                         $key->save();
                         $idcarga = $key->id_carga;
 
@@ -374,13 +439,13 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                 }
             }
             if ($canales->canales > 30) {
-                //mayor a 30 canales espera 10 segundos
+                //mayor a 30 canales espera 5 segundos
+                echo "\nesperando 5 segundos\n";
+                sleep(5);
+            } else {
+                //menos a 30 canales espera 10 segundos
                 echo "\nesperando 10 segundos\n";
                 sleep(10);
-            } else {
-                //menos a 30 canales espera 20 segundos
-                echo "\nesperando 20 segundos\n";
-                sleep(5);
             }
         }
     }
@@ -526,7 +591,7 @@ function subirGestion($key,$campana){
         $gestion->sub_action='NO CONTESTA IVR';
         try{
             $gestion->save();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $e->getMessage() . "\n";
         }
 
@@ -536,7 +601,7 @@ function subirGestion($key,$campana){
         $account->demarche_cex_count=$account->demarche_cex_count+1;
         try{
             $account->save();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return $e->getMessage() . "\n";
         }
 
@@ -554,7 +619,11 @@ function subirGestion($key,$campana){
                 'Content-Type: application/json',
             ),
         ));
-        $response = curl_exec($curl);
+        try{
+            $response = curl_exec($curl);
+        } catch (\Exception $e) {
+            return "Error CURL: ".$e->getMessage() . "\n";
+        }
         $err = curl_error($curl);
         curl_close($curl);
 
@@ -599,7 +668,7 @@ function subirGestion2($id_gestion,$estado){
         try{
             $gestion->save();
             $cuenta->save();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             echo $e->getMessage() . "\n";
         }
         /*$curl = curl_init();
@@ -682,6 +751,103 @@ function subirGestionesPorCampana($id_campana,$id_carga){
         $idCarg->save();
         return json_decode($response);
     }
+}
+
+function reSubirGestionesPorCampanaIvr($idCarga){
+    reSubirGestionesPorCampanaIvr(6232);
+    dd('fin fix');
+    //$account=tbl_accounts::where('identifier',$key['cedula'].'->'.$key['cuenta'])->where('campaign_id',578)->first();
+    $campana=id_carga::find($idCarga);
+    $script=tbl_script::where('id_campania',$campana->id_campania)->first();
+    $cargas=carga::where('id_carga',$idCarga)->whereNull('id_gestion_original')->get();
+
+    $script=tbl_script::where('id_script',$script->id_script)->first();
+    $count=0;
+    foreach ($cargas as $carga){
+        $account=tbl_accounts::where('identifier',$carga->cedula)->where('campaign_id',$campana->id_campania_sis_gest)->first();
+
+        if (count($account)>0){
+        $count++;
+        $gestion=new tbl_demarches();
+        $gestion->account_id=$account->id;
+        $gestion->document=$account->target_document;
+        $gestion->agent_id=null;
+        $gestion->agent='DIEGO BLADIMIR ARMIJOS CAJAMARCA';
+        $gestion->executive_id=9;
+        $gestion->phone=$carga->telefono;
+        $gestion->address=null;
+        $gestion->weight='';
+        $gestion->action='ENVIAR IVR';
+        $gestion->reason=null;
+        $gestion->description=$script->script_gestion;
+        $gestion->original_demarche='';
+        $gestion->validated=1;
+        $gestion->contact_type='';
+        $gestion->extra='{}';
+        $gestion->images='{}';
+        $gestion->cex_date=date('Y-m-d 00:00:00');
+        $gestion->signature=null;
+        $gestion->last_user=null;
+        $gestion->major_user=null;
+        $gestion->uniqueid=null;
+        $gestion->sub_action='';
+        $gestion->sub_reason=null;
+        $gestion->tlc_time=null;
+        $gestion->cex_time='00:00:00';
+        $gestion->type='DM';
+        $gestion->sent_status=0;
+        $gestion->discarded=0;
+        $gestion->weight='102';
+        $gestion->contact_type='NC';
+        $gestion->sub_action='NO CONTESTA IVR';
+        $gestion->created_at=date('Y-m-d H:i:s');
+        try{
+            $gestion->save();
+        } catch (\Exception $e) {
+            return $e->getMessage() . "\n";
+        }
+
+        $account->cex_weight='102';
+        $account->cex_weight_type='NC';
+        $account->cex_weight_date='2019-06-03';
+        $account->demarche_cex_count=$account->demarche_cex_count+1;
+        try{
+            $account->save();
+        } catch (\Exception $e) {
+            return $e->getMessage() . "\n";
+        }
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "http://ncobefecapp.cobefec.com/apoyo/gestiones/gestion/".$gestion->id,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_TIMEOUT => 30000,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => array(
+                // Set Here Your Requesred Headers
+                'Content-Type: application/json',
+            ),
+        ));
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
+
+        if ($err) {
+            echo "cURL Error #:" . $err;
+        } else {
+            print_r(json_decode($response));
+        }
+            $carga->id_gestion_original=$gestion->id;
+            $carga->save();
+
+        //return $gestion->id;
+    }
+    }
+    echo $count;
+
 }
 
 function balanceoCanales($canales){

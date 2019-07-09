@@ -1034,10 +1034,10 @@ order by 1,2,3,4
 select b.name Marca, concat(u2.first_name, ' ', u2.last_name) Coordinador,
 (select concat(u1.first_name, ' ', u1.last_name) from cobefec3.assignment_cex a2, cobefec3.executives e2, cobefec3.users u1 where a2.executive_id=e2.id and e2.user_id=u1.id and a2.account_id=a.id order by a2.assigned_date desc limit 1) Gestor_CEX,
 a.target_document Cedula,
-if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if(b.id=8,a.data ->> '$.nombre',if(b.id=10,a.data ->> '$.nombre','')))) Nombre,
+if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if((b.id=8 or b.id=9 or b.id=10),a.data ->> '$.nombre',if(b.id=6,a.data ->> '$.cliente','')))) Nombre,
 c.name Campana,
-if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',''))) Producto,
-if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if(b.id=8,a.data ->> '$.ciudad',if(b.id=10,a.data ->> '$.ciudad','')))) Ciudad,
+if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',if(b.id=9,p.name,if(b.id=6,c.name,''))))) Producto,
+if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if((b.id=6 or b.id=8 or b.id=9 or b.id=10),a.data ->> '$.ciudad',''))) Ciudad,
 z.name Ruta, if(b.id=8,a.data ->> '$.agencia',if(a.data ->> '$.zona'='#REF!','',ifnull(a.data ->> '$.zona',''))) Zona, if(b.id=8,a.data ->> '$.sucursal',ifnull(a.data ->> '$.region','')) Region, ifnull(a.data ->> '$.seccion','') Seccion,
 if(b.id=2,a.data ->> '$.ciclof','') Ciclo,
 if(b.id=2,a.data ->> '$.saldo_actual',if(b.id=3,a.recovered,if(b.id=8,a.data ->> '$.total_a_pagar',if(b.id=10,a.data ->> '$.saldo_actual',a.recovered)))) Valor_pendiente,
@@ -1056,9 +1056,9 @@ select coordinador from cobefec_reportes.coordinadorxciudad where marca=b.id and
 ), ifnull((select coordinador from cobefec_reportes.coordinadorxzona where marca=b.id and zona=(if(b.id=8,a.data ->> '$.agencia',if(a.data ->> '$.zona'='#REF!','',ifnull(a.data ->> '$.zona','')))) limit 1),'')
 ) Coordinador, 
 'POR ZONIFICAR' Gestor_CEX, a.target_document Cedula,
-if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if(b.id=8,a.data ->> '$.nombre',if(b.id=10,a.data ->> '$.nombre','')))) Nombre, 
-c.name Campana, if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',''))) Producto,
-if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if(b.id=8,a.data ->> '$.ciudad',if(b.id=10,a.data ->> '$.ciudad','')))) Ciudad,
+if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if((b.id=8 or b.id=9 or b.id=10),a.data ->> '$.nombre',if(b.id=6,a.data ->> '$.cliente','')))) Nombre, 
+c.name Campana, if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',if(b.id=9,p.name,if(b.id=6,c.name,''))))) Producto,
+if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if((b.id=6 or b.id=8 or b.id=9 or b.id=10),a.data ->> '$.ciudad',''))) Ciudad,
 'POR ZONIFICAR' Ruta, if(b.id=8,a.data ->> '$.agencia',if(a.data ->> '$.zona'='#REF!','',ifnull(a.data ->> '$.zona',''))) Zona, if(b.id=8,a.data ->> '$.sucursal',ifnull(a.data ->> '$.region','')) Region, ifnull(a.data ->> '$.seccion','') Seccion,
 if(b.id=2,a.data ->> '$.ciclof','') Ciclo,
 if(b.id=2,a.data ->> '$.saldo_actual',if(b.id=3,a.recovered,if(b.id=8,a.data ->> '$.total_a_pagar',if(b.id=10,a.data ->> '$.saldo_actual',a.recovered)))) Valor_pendiente,
@@ -1070,9 +1070,9 @@ and c.enabled=1 and c.deleted_at is null and p.enabled=1 and p.deleted_at is nul
 and a.zone_id is null and c.id in (".$campanas.")
 UNION ALL
 select b.name Marca, 'N/A' Coordinador, 'SIN COBERTURA' Gestor_CEX, a.target_document Cedula,
-if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if(b.id=8,a.data ->> '$.nombre',if(b.id=10,a.data ->> '$.nombre','')))) Nombre, 
-c.name Campana, if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',''))) Producto,
-if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if(b.id=8,a.data ->> '$.ciudad',if(b.id=10,a.data ->> '$.ciudad','')))) Ciudad,
+if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if((b.id=8 or b.id=9 or b.id=10),a.data ->> '$.nombre',if(b.id=6,a.data ->> '$.cliente','')))) Nombre, 
+c.name Campana, if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',if(b.id=9,p.name,if(b.id=6,c.name,''))))) Producto,
+if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if((b.id=6 or b.id=8 or b.id=9 or b.id=10),a.data ->> '$.ciudad',''))) Ciudad,
 'SIN COBERTURA' Ruta, if(b.id=8,a.data ->> '$.agencia',if(a.data ->> '$.zona'='#REF!','',ifnull(a.data ->> '$.zona',''))) Zona, if(b.id=8,a.data ->> '$.sucursal',ifnull(a.data ->> '$.region','')) Region, ifnull(a.data ->> '$.seccion','') Seccion,
 if(b.id=2,a.data ->> '$.ciclof','') Ciclo,
 if(b.id=2,a.data ->> '$.saldo_actual',if(b.id=3,a.recovered,if(b.id=8,a.data ->> '$.total_a_pagar',if(b.id=10,a.data ->> '$.saldo_actual',a.recovered)))) Valor_pendiente, 
@@ -1089,9 +1089,9 @@ where ez.id=(select max(id) from cobefec3.executive_zone where brand_id=ez.brand
 (select concat(u.first_name, ' ', u.last_name) from cobefec3.executive_zone ez, cobefec3.executives e, cobefec3.users u
 where ez.id=(select max(id) from cobefec3.executive_zone where brand_id=ez.brand_id and zone_id=ez.zone_id) and e.id=ez.executive_id and u.id=e.user_id and ez.brand_id=b.id and ez.zone_id=a.zone_id) Gestor_CEX,
 a.target_document Cedula,
-if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if(b.id=8,a.data ->> '$.nombre',if(b.id=10,a.data ->> '$.nombre','')))) Nombre,
-c.name Campana, if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',''))) Producto,
-if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if(b.id=8,a.data ->> '$.ciudad',if(b.id=10,a.data ->> '$.ciudad','')))) Ciudad,
+if(b.id=2,a.data ->> '$.nomsoc',if(b.id=3,a.data ->> '$.nombres',if((b.id=8 or b.id=9 or b.id=10),a.data ->> '$.nombre',if(b.id=6,a.data ->> '$.cliente','')))) Nombre,
+c.name Campana, if(b.id=2,a.data ->> '$.codpri',if(b.id=3,ifnull(a.stage,''),if(b.id=10,a.data ->> '$.castigo',if(b.id=9,p.name,if(b.id=6,c.name,''))))) Producto,
+if(b.id=2,a.data ->> '$.nombre_ciudad',if(b.id=3,ifnull(a.data ->> '$.provincia',''),if((b.id=6 or b.id=8 or b.id=9 or b.id=10),a.data ->> '$.ciudad',''))) Ciudad,
 z.name Ruta, if(b.id=8,a.data ->> '$.agencia',if(a.data ->> '$.zona'='#REF!','',ifnull(a.data ->> '$.zona',''))) Zona, if(b.id=8,a.data ->> '$.sucursal',ifnull(a.data ->> '$.region','')) Region, ifnull(a.data ->> '$.seccion','') Seccion,
 if(b.id=2,a.data ->> '$.ciclof','') Ciclo,
 if(b.id=2,a.data ->> '$.saldo_actual',if(b.id=3,a.recovered,if(b.id=8,a.data ->> '$.total_a_pagar',if(b.id=10,a.data ->> '$.saldo_actual',a.recovered)))) Valor_pendiente,
@@ -1104,6 +1104,7 @@ and a.zone_id is not null and a.zone_id<>0 and z.id=a.zone_id
 and (select count(*) from cobefec3.assignment_cex where account_id=a.id)=0 and c.id in (".$campanas.")
 order by 1,2,3,5
 ;
+
 ");
                 }catch (\Exception $exception){
                     return $exception->getMessage();
@@ -1216,40 +1217,43 @@ from cobefec_reportes.zonificacion_cex z
                     $texto = $ruta->description;
                     $palabra = "OBSERVACIÓN:";
                     $description= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
-                    $description= $texto;
+                    //$description= $texto;
                     $palabra = "Cliente:";
                     $nombreCliente= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
                     $posicion=strpos($nombreCliente,"-");
                     $nombreCliente=substr($nombreCliente,0,$posicion);
 
                     //busco en el sistema de gestión
-                    $demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->where('validated',1)->where('discarded',0)->first();
+                    if (isset($ruta->account_id)){
+                        $account=tbl_accounts::find($ruta->account_id);
+                        $data=json_decode($account->data);
+                        $demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->where('validated',1)->where('discarded',0)->first();
 
-                    if(isset($demarche)){
-                        $rutas[$ir]->agente=$demarche->agent;
-                        $rutas[$ir]->cedula_cuenta=$demarche->document;
-                        $datos_cuenta=json_decode($demarche->cuenta->data);
-                        if(isset($datos_cuenta->nombres)){
-                            $rutas[$ir]->nombre_cuenta=$datos_cuenta->nombres;
-                        }elseif(isset($datos_cuenta->nomsoc)){
-                            $rutas[$ir]->nombre_cuenta = $datos_cuenta->nomsoc;
-                        }else{
-                            $rutas[$ir]->nombre_cuenta='REVISAR LA CONFIGURACION DEL NOMBRE DE LA CUENTA EN LA CAMPAÑA';
-                        }
-                        $campana_cuenta=$demarche->cuenta->campana;
-                        $rutas[$ir]->campana=$campana_cuenta->name;
-                        $producto_cuenta=$campana_cuenta->producto;
-                        $rutas[$ir]->producto=$producto_cuenta->name;
-                        $rutas[$ir]->accion=$demarche->action;
-                        $rutas[$ir]->sub_accion=$demarche->sub_action;
                         $rutas[$ir]->description=$description;
-                        array_push($gestiones,$ruta);
+                            //array_push($gestiones,$ruta);
+
+                        if(isset($demarche)){
+                            $rutas[$ir]->agente=$demarche->agent;
+                            $rutas[$ir]->cedula_cuenta=$account->target_document;
+                            $rutas[$ir]->nombre_cuenta=$data->nombres;
+
+                            //$rutas[$ir]->nombre_cuenta='REVISAR LA CONFIGURACION DEL NOMBRE DE LA CUENTA EN LA CAMPAÑA';
+
+                            $campana_cuenta=$account->campana;
+                            $rutas[$ir]->campana=$campana_cuenta->name;
+                            $producto_cuenta=$campana_cuenta->producto;
+                            $rutas[$ir]->producto=$producto_cuenta->name;
+                            $rutas[$ir]->accion=$demarche->action;
+                            $rutas[$ir]->sub_accion=$demarche->sub_action;
+                            $rutas[$ir]->description=$description;
+                            array_push($gestiones,$ruta);
+                        }
+
                     }
                 }
                 $ir++;
             }
         }
-
         return view('reporteNuevoSistema/cex/monitoreo/mapa', compact('coordenadas','gestor','gestiones'));
     }
 
@@ -1293,8 +1297,19 @@ from cobefec_reportes.zonificacion_cex z
                     $texto = $ruta->description;
                     $palabra = "OBSERVACIÓN:";
                     $description= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
+                    $description= $texto;
+                    $palabra = "Cliente:";
+                    $nombreCliente= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
+                    $posicion=strpos($nombreCliente,"-");
+                    $nombreCliente=substr($nombreCliente,0,$posicion);
+
                     //busco en el sistema de gestión
-                    $demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->first();
+                    //$demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->where('validated',1)->where('discarded',0)->first();
+
+                    $rutas[$ir]->description=$description;
+                    array_push($gestiones,$ruta);
+
+                    /*
                     if(isset($demarche)){
                         $rutas[$ir]->agente=$demarche->agent;
                         $rutas[$ir]->cedula_cuenta=$demarche->document;
@@ -1314,7 +1329,7 @@ from cobefec_reportes.zonificacion_cex z
                         $rutas[$ir]->sub_accion=$demarche->sub_action;
                         $rutas[$ir]->description=$description;
                         array_push($gestiones,$ruta);
-                    }
+                    }*/
                 }
                 $ir++;
             }
@@ -1327,7 +1342,6 @@ from cobefec_reportes.zonificacion_cex z
     {
 
         //dd($request->all());
-        sleep(2);
         $gestor=tbl_api_cobefec::find($request->id);
         if ($gestor){
             $gestor->direccion=$request->direccion;
@@ -1426,7 +1440,7 @@ from cobefec_reportes.zonificacion_cex z
     public function refreshCexGps($imei,$fecha)
     {
         $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
-        $latlng=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('imei',$imei)->where('direccion',null)->orderBy('secid')->get(['latitud','longitud']);
+        $latlng=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('imei',$imei)->where('direccion',null)->orderBy('secid')->get(['id','latitud','longitud']);
         if(!isset($latlng)){
             $latlng=Array();
         }
@@ -2012,9 +2026,8 @@ function distanceCalculation($point1_lat, $point1_long, $point2_lat, $point2_lon
     return round($distance, $decimals);
 }
 
-
 function monitoreoCexOnline($fecha){
-    $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
+    $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->where('activo',1)->get(['id','imei','cedula','telefono','nombre'])->toArray();
     $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
     $idispositivos=0;
 
@@ -2119,7 +2132,7 @@ function monitoreoCexOnline($fecha){
 
 
     $gestors=tbl_users::whereIn('id',tbl_executives::whereNull('deleted_at')->get(['user_id']))->where('enabled',1)->whereNull('deleted_at')->pluck("email","id")->all();
-    $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->get(['id','imei','cedula','telefono','nombre'])->toArray();
+    $dispositivos=tbl_dispositivos::where('imei','<>','')->whereNotNull('imei')->where('activo',1)->get(['id','imei','cedula','telefono','nombre'])->toArray();
     $dispositivosfs=Array();
     $idsp=0;
     foreach ($dispositivos as $dispositivo){
@@ -2143,6 +2156,7 @@ function monitoreoCexOnline($fecha){
             $dispositivos[$idsp]['bateria_porcentaje']=$api_cobefec->bateria_porcentaje."%";
 
             $gpsStatus=tbl_auditoria_dispositivos::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->whereNotNull('status_gps')->orderBy('dttimeupdate','DESC')->first();
+
             $dispositivos[$idsp]['status_gps']="ACTIVO";
             if(isset($gpsStatus->status_gps)){
                 if($gpsStatus->status_gps==1){

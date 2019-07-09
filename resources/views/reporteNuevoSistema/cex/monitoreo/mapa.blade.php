@@ -155,6 +155,7 @@
 
 
                 function addMarker(location, map, gestion) {
+                    console.log(gestion);
                     // Add the marker at the clicked location, and add the next-available label
                     // from the array of alphabetical characters.
                     var marker = new google.maps.Marker({
@@ -173,13 +174,13 @@
                         '<div id="bodyContent">'+
                         '<p><b>Batería: </b>'+gestion['extras']['battery']+'%'+
                         '<br><b>Hora de gestión: </b>'+gestion['point_time']+
-                        //'<br><b>Cédula cuenta: </b>'+gestion['cedula_cuenta']+
-                        //'<br><b>Nombre cuenta: </b>'+gestion['nombre_cuenta']+
-                        //'<br><b>Producto: </b>'+gestion['producto']+
-                        //'<br><b>Campaña: </b>'+gestion['campana']+
-                        //'<br><b>Asesor Cex: </b>'+gestion['agente']+
-                        //'<br><b>Acción: </b>'+gestion['accion']+
-                        //'<br><b>Sub acción: </b>'+gestion['sub_accion']+
+                        '<br><b>Cédula cuenta: </b>'+gestion['cedula_cuenta']+
+                        '<br><b>Nombre cuenta: </b>'+gestion['nombre_cuenta']+
+                        '<br><b>Producto: </b>'+gestion['producto']+
+                        '<br><b>Campaña: </b>'+gestion['campana']+
+                        '<br><b>Asesor Cex: </b>'+gestion['agente']+
+                        '<br><b>Acción: </b>'+gestion['accion']+
+                        '<br><b>Sub acción: </b>'+gestion['sub_accion']+
                         '<br><br><b>Descripción: '+gestion['description']+'</b>'+
                         '<br><b>Direccion: </b>'+direccion+
                         '</br></div>'+

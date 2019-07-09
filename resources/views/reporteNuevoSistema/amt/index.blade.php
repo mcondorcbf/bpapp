@@ -64,7 +64,8 @@
                                                 <th>Marca:
                                                     <div class='input-group date' id=''>
                                                         <select class="form-control" title="SELECCIONE UNO" name="id_marca" id="id_marca" required readonly>
-                                                            <option value="13" selected>AUTORIDAD DE TRANSITO MUNICIPAL</option>
+                                                            <option selected>Seleccione Uno</option>
+                                                            <option value="13">AUTORIDAD DE TRANSITO MUNICIPAL</option>
                                                         </select>
                                                         <span class="input-group-addon"></span>
                                                     </div>
@@ -72,28 +73,25 @@
                                             </tr>
                                             <tr><th>Producto:
                                                     <div class='input-group date' id=''>
-                                                        <select class="form-control" title="SELECCIONE UNO" name="id_producto" id="id_producto" required readonly>
-                                                            <option value="24" selected>ATM</option>
+                                                        <select class="form-control" title="SELECCIONE UNO" name="id_producto" id="id_producto" required>
+                                                            <option value="">Seleccione Uno</option>
                                                         </select>
                                                         <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon"></span>
-                                                        </span>
+                                                                    <span class="glyphicon glyphicon"></span>
+                                                                </span>
                                                     </div>
                                                 </th>
                                             </tr>
                                             <tr><th>Campaña:
                                                     <div class='input-group date' id=''>
+
                                                         <select class="form-control" title="SELECCIONE UNO" name="id_campana" id="id_campana" required>
                                                             <option value="">Seleccione Uno</option>
-                                                            @if(!empty($campanas))
-                                                                @foreach($campanas as $key => $value)
-                                                                    <option value="{{ $key }}">{{ $value }}</option>
-                                                                @endforeach
-                                                            @endif
                                                         </select>
+
                                                         <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon"></span>
-                                                        </span>
+                                                                    <span class="glyphicon glyphicon"></span>
+                                                                </span>
                                                     </div>
                                                 </th>
                                             </tr>
@@ -129,6 +127,16 @@
 
                                     </div>
                                 </form>
+                                <nav class="navbar navbar-default">
+                                    <div class="container-fluid">
+                                        <div class="navbar-header">
+                                            <a class="navbar-brand" href="#" id="cuentas1" style="color: #000; margin-bottom: 15px"></a>
+                                            <div id="loader-icon2" style="display:none; color: green;padding-top: 5px" align="center">
+                                                <img src="{{asset('images/loading.gif')}}" width="70"><br>PROCESANDO . . .
+                                            </div>
+                                        </div>
+                                    </div>
+                                </nav>
                             </div>
                         </div>
                         <div class="tab-pane fade" id="general_cuentas">
@@ -142,6 +150,7 @@
                                                 <th>Marca:
                                                     <div class='input-group date' id=''>
                                                         <select class="form-control" title="SELECCIONE UNO" name="id_marca" id="id_marca" required readonly>
+                                                            <option selected>Seleccione Uno</option>
                                                             <option value="13" selected>AUTORIDAD DE TRANSITO MUNICIPAL</option>
                                                         </select>
                                                         <span class="input-group-addon"></span>
@@ -150,28 +159,26 @@
                                             </tr>
                                             <tr><th>Producto:
                                                     <div class='input-group date' id=''>
-                                                        <select class="form-control" title="SELECCIONE UNO" name="id_producto" id="id_producto" required readonly>
-                                                            <option value="24" selected>ATM</option>
+                                                        <select class="form-control" title="SELECCIONE UNO" name="id_producto" id="id_producto" required>
+                                                            <option selected>Seleccione Uno</option>
+                                                            <option value="24">ATM</option>
                                                         </select>
                                                         <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon"></span>
-                                                        </span>
+                                <span class="glyphicon glyphicon"></span>
+                                </span>
                                                     </div>
                                                 </th>
                                             </tr>
                                             <tr><th>Campaña:
                                                     <div class='input-group date' id=''>
+
                                                         <select class="form-control" title="SELECCIONE UNO" name="id_campana" id="id_campana" required>
                                                             <option value="">Seleccione Uno</option>
-                                                        @if(!empty($campanas))
-                                                            @foreach($campanas as $key => $value)
-                                                                <option value="{{ $key }}">{{ $value }}</option>
-                                                            @endforeach
-                                                        @endif
                                                         </select>
+
                                                         <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon"></span>
-                                                        </span>
+                                <span class="glyphicon glyphicon"></span>
+                                </span>
                                                     </div>
                                                 </th>
                                             </tr>
@@ -214,12 +221,57 @@
     </div>
 </div>
 <script type="application/javascript">
+    $("select[name='id_marca']").change(function(){
+        var reporte_nro = $('#reporte_nro').val();
+        $('#loader-icon'+reporte_nro).hide();
+        var id_marca = $(this).val();
+        var token = $("input[name='_token']").val();
+        var homeLoader = $('body').loadingIndicator({
+            useImage: false,
+        }).data("loadingIndicator");
+        homeLoader.show();
+        $.ajax({
+            url: "/gProducto",
+            method: 'POST',
+            data: {id_marca:id_marca, _token:token},
+            success: function(data) {
+                $("select[name='id_producto']").html('');
+                $("select[name='id_producto']").html(data.options);
+                $("#cuentas"+reporte_nro).html('');
+                homeLoader.hide();
+            }
+        });
+    });
+
+    $("select[name='id_producto']").change(function(){
+        var reporte_nro = $('#reporte_nro').val();
+        $('#loader-icon'+reporte_nro).hide();
+        var id_producto = $(this).val();
+        var token = $("input[name='_token']").val();
+        var homeLoader = $('body').loadingIndicator({
+            useImage: false,
+        }).data("loadingIndicator");
+        homeLoader.show();
+        $.ajax({
+            url: "/gCampana",
+            method: 'POST',
+            data: {id_producto:id_producto, _token:token},
+            success: function(data) {
+                $("select[name='id_campana']").html('');
+                $("select[name='id_campana']").html(data.options);
+                $("#cuentas"+reporte_nro).html('');
+                homeLoader.hide();
+            }
+        });
+    });
+
     $("select[name='id_campana']").change(function(){
         var reporte_nro = $('#reporte_nro').val();
         $('#loader-icon'+reporte_nro).show();
         $("#cuentas"+reporte_nro).html('');
         var id_campana = $(this).val();
         var token = $("input[name='_token']").val();
+        $("#cuentas"+reporte_nro).html('- Calculando...');
         $.ajax({
             url: "/gCuentas",
             method: 'POST',

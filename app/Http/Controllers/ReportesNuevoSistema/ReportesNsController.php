@@ -49,10 +49,8 @@ class ReportesNsController extends Controller
     public function getCampana(Request $request){
         try{
             $campanas=tbl_campaigns::where('product_id',$request->id_producto)->where('enabled',1)->whereNull('deleted_at')->orderBy('id','DESC')->pluck("name","id")->all();
-
             $data= view('reporteNuevoSistema/diners/marcas/ajax-select-campana',compact('campanas'))->render();
             return response()->json(['options'=>$data]);
-
         }catch (\Exception $e) {
             return response()->json('Ocurrio un error: '.$e->getMessage(), 500);
         }

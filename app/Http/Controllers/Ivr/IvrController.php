@@ -563,9 +563,14 @@ class IvrController extends Controller
         $clientes= array();
         if(isset($usuarios_clientes)){
             foreach ($usuarios_clientes as $k){
-                array_push($clientes,array('id_cliente'=>$k->id_cliente,'nombres'=>clientes::where('id_cliente',$k->id_cliente)->first()->nombres));
+                if (clientes::where('id_cliente',$k->id_cliente)->where('estado',1)->first()){
+                    array_push($clientes,array('id_cliente'=>$k->id_cliente,'nombres'=>clientes::where('id_cliente',$k->id_cliente)->first()->nombres));
+                }
             }
         }
+        //quito duplicados
+        $clientes= array_map('unserialize', array_unique(array_map('serialize', $clientes)));
+        //fin quito duplicados
         $campanias = array();
         $scripts = scripts::all();
         $archivo=Input::file('file')->getClientOriginalName();
@@ -871,6 +876,7 @@ class IvrController extends Controller
     {
         //echo $request->fecha_agenda;
         //dd(Carbon::parse($request->fecha_agenda)->format('Y-m-d H:i:s'));
+        ini_set('max_execution_time',0);
         $user = Auth::user();
         $fp = fopen($request->dir, "r");
 
@@ -1138,17 +1144,25 @@ class IvrController extends Controller
                     //SOLO APLICA PARA ATM
                     if ($cargaIndexada->campaniaIvr->clienteIvr->id_cliente == 11) {
                         //SELECT count(*) from asteriskcdrdb.tbl_carga_ivr_federada where id_carga=5175 and estado_indexado=1;
+                        $total_cargados=carga::where('id_carga',$k['id_carga'])->count();
                         $ivrfinalizados[$i]['indexados'] = round(((carga::where('id_carga',$k['id_carga'])->where('estado_indexado',1)->count())/(carga::where('id_carga',$k['id_carga'])->count()))*100,2);
                         $cargaId=id_carga::find($k['id_carga']);
-                        if ($ivrfinalizados[$i]['indexados']>=98){
-                            $cargaId->porcentaje_indexado=100;
-                            $cargaId->estado_indexado=1;
+                        $porcentaje=0;
+                        if($total_cargados < 9000){
+                            $porcentaje=98;
+                        }else{
+                            $porcentaje=99;
+                        }
+                        if ($ivrfinalizados[$i]['indexados']>=$porcentaje) {
+                            $cargaId->porcentaje_indexado = 100;
+                            $cargaId->estado_indexado = 1;
                             $cargaId->save();
                         }else{
                             $cargaId->porcentaje_indexado=$ivrfinalizados[$i]['indexados'];
                             $cargaId->estado_indexado=0;
                             $cargaId->save();
                         }
+
                         $ivrfinalizados[$i]['indexados'] = $ivrfinalizados[$i]['indexados']."%";
                     }else{
                         $ivrfinalizados[$i]['indexados'] = 'No aplica';
@@ -1157,10 +1171,7 @@ class IvrController extends Controller
                 }else{
                     $ivrfinalizados[$i]['indexados'] = '100%';
                 }
-
                 $i++;
-
-
             }
 
 

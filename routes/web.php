@@ -386,6 +386,7 @@ Route::get('/rAmt', 'ReportesNuevoSistema\ReportesAmtController@reportes');
 Route::post('/reporteAmt', 'ReportesNuevoSistema\ReportesAmtController@reporteAmt');
 Route::post('/reporteGeneralCuentasAtm', 'ReportesNuevoSistema\ReportesAmtController@reporteGeneralCuentas');
 Route::get('/sivr', '\App\Console\Commands\SendIvrs@handle');
+Route::post('/reporteMarcacionesAtm', 'ReportesNuevoSistema\ReportesAmtController@reporteMarcacionesAtm');
 
 //APOYO
 Route::get('/actZonificacion', 'ReportesNuevoSistema\ReportesNsController@actualizarZonificacion');

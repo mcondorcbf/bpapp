@@ -149,7 +149,7 @@
                         @foreach($gestiones as $gestione)
 
                 var gestion = <?php echo json_encode( $gestione ) ?>;
-                addMarker({lat: {{$gestione->latitude}}, lng: {{$gestione->longitude}} }, map, gestion);
+                addMarker({lat: {{$gestione['latitude']}}, lng: {{$gestione['longitude']}} }, map, gestion);
                 @endforeach
 
 
@@ -174,15 +174,15 @@
                         '<div id="bodyContent">'+
                         '<p><b>Batería: </b>'+gestion['extras']['battery']+'%'+
                         '<br><b>Hora de gestión: </b>'+gestion['point_time']+
-                        '<br><b>Cédula cuenta: </b>'+gestion['cedula_cuenta']+
+                        '<br><b>Asesor Cex: </b>'+gestion['agente']+
+                        '<br><br><b>Cédula cuenta: </b>'+gestion['cedula_cuenta']+
                         '<br><b>Nombre cuenta: </b>'+gestion['nombre_cuenta']+
                         '<br><b>Producto: </b>'+gestion['producto']+
                         '<br><b>Campaña: </b>'+gestion['campana']+
-                        '<br><b>Asesor Cex: </b>'+gestion['agente']+
                         '<br><b>Acción: </b>'+gestion['accion']+
                         '<br><b>Sub acción: </b>'+gestion['sub_accion']+
-                        '<br><br><b>Descripción: '+gestion['description']+'</b>'+
-                        '<br><b>Direccion: </b>'+direccion+
+                        '<br><br><b>Descripción: </b>'+gestion['description']+
+                        //'<br><b>Direccion: </b>'+direccion+
                         '</br></div>'+
                         '</div>';
                     var infowindow = new google.maps.InfoWindow({

@@ -1208,52 +1208,9 @@ from cobefec_reportes.zonificacion_cex z
         $gestiones=Array();
         if (isset($rutas)){
             $rutas=json_decode($rutas->data);
-            $ir=0;
-            foreach ($rutas as $ruta){
-                $ruta->latitude=str_replace(',','.',$ruta->latitude);
-                $ruta->longitude=str_replace(',','.',$ruta->longitude);
-                if($ruta->type=='DEMARCHE'){
-                    //extraigo la observacion del json campo description
-                    $texto = $ruta->description;
-                    $palabra = "OBSERVACIÓN:";
-                    $description= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
-                    //$description= $texto;
-                    $palabra = "Cliente:";
-                    $nombreCliente= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
-                    $posicion=strpos($nombreCliente,"-");
-                    $nombreCliente=substr($nombreCliente,0,$posicion);
-
-                    //busco en el sistema de gestión
-                    if (isset($ruta->account_id)){
-                        $account=tbl_accounts::find($ruta->account_id);
-                        $data=json_decode($account->data);
-                        $demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->where('validated',1)->where('discarded',0)->first();
-
-                        $rutas[$ir]->description=$description;
-                            //array_push($gestiones,$ruta);
-
-                        if(isset($demarche)){
-                            $rutas[$ir]->agente=$demarche->agent;
-                            $rutas[$ir]->cedula_cuenta=$account->target_document;
-                            $rutas[$ir]->nombre_cuenta=$data->nombres;
-
-                            //$rutas[$ir]->nombre_cuenta='REVISAR LA CONFIGURACION DEL NOMBRE DE LA CUENTA EN LA CAMPAÑA';
-
-                            $campana_cuenta=$account->campana;
-                            $rutas[$ir]->campana=$campana_cuenta->name;
-                            $producto_cuenta=$campana_cuenta->producto;
-                            $rutas[$ir]->producto=$producto_cuenta->name;
-                            $rutas[$ir]->accion=$demarche->action;
-                            $rutas[$ir]->sub_accion=$demarche->sub_action;
-                            $rutas[$ir]->description=$description;
-                            array_push($gestiones,$ruta);
-                        }
-
-                    }
-                }
-                $ir++;
-            }
+            $gestiones=datosDemarche($rutas,$executive,$fecha);
         }
+
         return view('reporteNuevoSistema/cex/monitoreo/mapa', compact('coordenadas','gestor','gestiones'));
     }
 
@@ -1288,51 +1245,7 @@ from cobefec_reportes.zonificacion_cex z
         $gestiones=Array();
         if (isset($rutas)){
             $rutas=json_decode($rutas->data);
-            $ir=0;
-            foreach ($rutas as $ruta){
-                $ruta->latitude=str_replace(',','.',$ruta->latitude);
-                $ruta->longitude=str_replace(',','.',$ruta->longitude);
-                if($ruta->type=='DEMARCHE'){
-                    //extraigo la observacion del json campo description
-                    $texto = $ruta->description;
-                    $palabra = "OBSERVACIÓN:";
-                    $description= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
-                    $description= $texto;
-                    $palabra = "Cliente:";
-                    $nombreCliente= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
-                    $posicion=strpos($nombreCliente,"-");
-                    $nombreCliente=substr($nombreCliente,0,$posicion);
-
-                    //busco en el sistema de gestión
-                    //$demarche=tbl_demarches::where('description',$description)->where('executive_id',$executive->id)->where('validated',1)->where('discarded',0)->first();
-
-                    $rutas[$ir]->description=$description;
-                    array_push($gestiones,$ruta);
-
-                    /*
-                    if(isset($demarche)){
-                        $rutas[$ir]->agente=$demarche->agent;
-                        $rutas[$ir]->cedula_cuenta=$demarche->document;
-                        $datos_cuenta=json_decode($demarche->cuenta->data);
-                        if(isset($datos_cuenta->nombres)){
-                            $rutas[$ir]->nombre_cuenta=$datos_cuenta->nombres;
-                        }elseif(isset($datos_cuenta->nomsoc)){
-                            $rutas[$ir]->nombre_cuenta = $datos_cuenta->nomsoc;
-                        }else{
-                            $rutas[$ir]->nombre_cuenta='REVISAR LA CONFIGURACION DEL NOMBRE DE LA CUENTA EN LA CAMPAÑA';
-                        }
-                        $campana_cuenta=$demarche->cuenta->campana;
-                        $rutas[$ir]->campana=$campana_cuenta->name;
-                        $producto_cuenta=$campana_cuenta->producto;
-                        $rutas[$ir]->producto=$producto_cuenta->name;
-                        $rutas[$ir]->accion=$demarche->action;
-                        $rutas[$ir]->sub_accion=$demarche->sub_action;
-                        $rutas[$ir]->description=$description;
-                        array_push($gestiones,$ruta);
-                    }*/
-                }
-                $ir++;
-            }
+            $gestiones=datosDemarche($rutas,$executive,$fecha);
         }
 
         return view('reporteNuevoSistema/cex/monitoreo/mapa', compact('coordenadas','gestor','gestiones'));
@@ -1362,12 +1275,12 @@ from cobefec_reportes.zonificacion_cex z
             $paradas=Array();
         }
 
-        $paradasReales=tbl_api_cobefec::whereDate('created_at',$fecha)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('secid')->get()->toArray();
+        $paradasReales=tbl_api_cobefec::whereDate('created_at',$fecha)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('update_time')->get()->toArray();
         if(!isset($paradasReales)){
             $paradasReales=Array();
         }
 
-        $paradasDirecciones=tbl_api_cobefec::whereDate('created_at',$fecha)->where('referencia',1)->where('imei',$imei)->where('direccion',null)->orderBy('secuencia')->get()->toArray();
+        $paradasDirecciones=tbl_api_cobefec::whereDate('created_at',$fecha)->where('referencia',1)->where('imei',$imei)->where('direccion',null)->orderBy('update_time')->get()->toArray();
 
         if(!isset($paradas)){
             $paradasDirecciones=Array();
@@ -1398,12 +1311,12 @@ from cobefec_reportes.zonificacion_cex z
     {
         $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
         $asesor=tbl_dispositivos::where('imei',$imei)->first();
-        $paradas=tbl_api_cobefec::where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->where('update_time','<',$fecha.' '.$configuracion->hora_fin)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('id')->get()->toArray();
+        $paradas=tbl_api_cobefec::where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->where('update_time','<',$fecha.' '.$configuracion->hora_fin)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('update_time')->get()->toArray();
         if(!isset($paradas)){
             $paradas=Array();
         }
 
-        $paradasReales=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('secid')->get()->toArray();
+        $paradasReales=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('update_time')->get()->toArray();
         if(!isset($paradasReales)){
             $paradasReales=Array();
         }
@@ -1430,7 +1343,7 @@ from cobefec_reportes.zonificacion_cex z
     public function paradasCexMapaG($fecha,$imei)
     {
         $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
-        $paradas=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('id')->get()->toArray();
+        $paradas=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('referencia',1)->where('imei',$imei)->where('asyncStatus',0)->orderBy('update_time')->get()->toArray();
         if(!isset($paradas)){
             $paradas=Array();
         }
@@ -1449,7 +1362,7 @@ from cobefec_reportes.zonificacion_cex z
 
     public function  calculoDistanciaCex(Request $request)
     {
-        $coordenadas=tbl_api_cobefec::where('imei',$request->imei)->whereDate('update_time',$request->update_time)->orderBy('id','DESC')->orderBy('secid','DESC')->limit(2)->get();
+        $coordenadas=tbl_api_cobefec::where('imei',$request->imei)->whereDate('update_time',$request->update_time)->orderBy('id','DESC')->orderBy('update_time','DESC')->limit(2)->get();
 
         $point1=Array();
         $point2=Array();
@@ -2136,7 +2049,7 @@ function monitoreoCexOnline($fecha){
     $dispositivosfs=Array();
     $idsp=0;
     foreach ($dispositivos as $dispositivo){
-        $api_cobefec=tbl_api_cobefec::where('imei',$dispositivo['imei'])->whereDate('created_at',$fecha)->orderBy('id','DESC')->first();
+        $api_cobefec=tbl_api_cobefec::where('imei',$dispositivo['imei'])->where('update_time','>=', $fecha.' '.$configuracion->hora_inicio)->orderBy('id','DESC')->first();
         if ($api_cobefec != null){
             $fecha1 = new \DateTime($api_cobefec->tiempo_parado);//fecha inicial
             $fecha2 = new \DateTime(date('Y:m:d ').$configuracion->time_out);//fecha cierre
@@ -2182,7 +2095,7 @@ function monitoreoCexOnline($fecha){
             $dispositivos[$idsp]['tiempo_parado']='';
             $dispositivos[$idsp]['distancia']='';
             $dispositivos[$idsp]['bateria_porcentaje']='';
-            $dispositivos[$idsp]['alerta']='danger';
+            $dispositivos[$idsp]['alerta']='default';
             $dispositivos[$idsp]['alerta_mensaje']='Sin Novedad';
             $dispositivos[$idsp]['appStatus']="INACTIVO";
             $dispositivos[$idsp]['status_gps']="INACTIVO";
@@ -2201,4 +2114,66 @@ function monitoreoCexOnline($fecha){
     //dd($dispositivos);
 
     return $dispositivos;
+}
+
+function datosDemarche(Array $rutas,$executive,$fecha){
+    $gestiones=Array();
+    $ir=0;
+
+    foreach ($rutas as $ruta){
+        $ruta->latitude=str_replace(',','.',$ruta->latitude);
+        $ruta->longitude=str_replace(',','.',$ruta->longitude);
+        if($ruta->type=='DEMARCHE'){
+            //extraigo la observacion del json campo description
+            $texto ='';
+            $texto = $ruta->description;
+            $palabra = "OBSERVACIÓN:";
+            $description= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
+            //$description= $texto;
+            $palabra = "Cliente:";
+            $nombreCliente= substr($texto, (strpos($texto, $palabra) + strlen($palabra)));
+            $posicion=strpos($nombreCliente,"-");
+            $nombreCliente=substr($nombreCliente,0,$posicion);
+
+            //busco en el sistema de gestión
+            if (isset($ruta->account_id)){
+                $account=tbl_accounts::find($ruta->account_id);
+                $configuration=json_decode($account->campana->configuration);
+                $nombre='';
+                foreach ($configuration as $k){
+                    if($k->type=='first_name' || $k->type=='last_name' || $k->type=='full_name'){$nombre=mb_strtolower($k->name);};
+                }
+
+                $data=json_decode($account->data);
+                $demarche=tbl_demarches::where('description','LIKE','%'.$description.'%')->where('executive_id',$executive->id)->where('account_id',$account->id)->whereDate('cex_date',$fecha)->first();
+
+                //array_push($gestiones,$ruta);
+                $gestiones[$ir]['agente']=isset($demarche->agent) ? $demarche->agent : '';
+                $gestiones[$ir]['cedula_cuenta']=isset($account->target_document) ? $account->target_document : '';
+                $gestiones[$ir]['nombre_cuenta']=isset($data->$nombre) ? $data->$nombre : '';
+                    $campana_cuenta=$account->campana ? $account->campana : '';
+                $gestiones[$ir]['campana']=isset($campana_cuenta->name) ? $campana_cuenta->name : '';
+                    $producto_cuenta=$campana_cuenta->producto ? $campana_cuenta->producto : '';
+                $gestiones[$ir]['producto']=isset($producto_cuenta->name) ? $producto_cuenta->name : '';
+                $gestiones[$ir]['accion']=isset($demarche->action) ? $demarche->action : '';
+                $gestiones[$ir]['sub_accion']=isset($demarche->sub_action) ? $demarche->sub_action : '';
+            }else{
+                $gestiones[$ir]['agente']=$executive->usuario->first_name.' '.$executive->usuario->last_name;
+                $gestiones[$ir]['cedula_cuenta']='No se recibió el account_id';
+                $gestiones[$ir]['nombre_cuenta']='No se recibió el account_id';
+                $gestiones[$ir]['campana']='';
+                $gestiones[$ir]['producto']='';
+                $gestiones[$ir]['accion']='';
+                $gestiones[$ir]['sub_accion']='';
+            }
+            $gestiones[$ir]['description']=isset($texto) ? $texto : '' ;
+            $gestiones[$ir]['latitude']=isset($ruta->latitude) ? $ruta->latitude : '';
+            $gestiones[$ir]['longitude']=isset($ruta->longitude) ? $ruta->longitude : '';
+            $gestiones[$ir]['extras']['battery']=isset($ruta->extras->battery) ? $ruta->extras->battery : '';
+            $gestiones[$ir]['point_time']=isset($ruta->point_time) ? $ruta->point_time : '';
+
+        }
+        $ir++;
+    }
+    return $gestiones;
 }

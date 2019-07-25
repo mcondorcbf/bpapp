@@ -42,6 +42,12 @@
 
 <script>
     $(document).ready(function() {
+        $('#tbl_asesores').DataTable( {
+            "order": [[ 0, "asc" ]],
+            "lengthMenu": [[-1,5,10,50], ['Todo',5,10,50]]
+        } );
+    } );
+    $(document).ready(function() {
         $('#tbl_ca').DataTable( {
             "order": [[ 0, "asc" ]],
             "lengthMenu": [[5,10,50,-1], [5,10,50,'Todo']]
@@ -112,7 +118,7 @@
                                 </form>
 
                                 <div style="width: 100%; height: 250px; overflow-y: scroll;">
-                                <table id="" class="table " style="width:100%; font-size: 11px;">
+                                <table id="tbl_asesores" class="table " style="width:100%; font-size: 11px;">
                                     <thead class="alert alert-success">
                                     <tr>
                                         <th>#</th>
@@ -387,7 +393,7 @@
                 $.each(data['paradasReales'], function (key, item) {
                     if(item["direccion"]!=null){direccion=item["direccion"];}else{direccion='';}
 
-                    if (item["asyncstatus"]=='1'){
+                    if (item["asyncStatus"]=='1'){
                         $("#tbParadasReales").append('<tr><td>'+item["secuencia"]+'</td> <td> '+item["created_at"]+' </td>   <td> Dato Offline  </td> <td> Dato Offline </td> <td> Dato Offline </td> <td> '+direccion+' </td></tr>');
                     }else{
                         $("#tbParadasReales").append('<tr><td>'+item["secuencia"]+'</td>  <td>'+item["hora_inicio"]+'</td>   <td>'+item["hora_fin"]+'</td> <td>'+item["tiempo_parado"]+'</td> <td>'+item["distancia"]+'</td> <td>'+direccion+'</td></tr>');
@@ -401,11 +407,11 @@
                 $.each(data['datos'], function (key, item) {
                     var asyncstatus='';appstatus='';cambio_hora='';zona_horaria='';status_gps='';appnetcondata='';appnetconmbdata='';
 
-                    if(item["asyncstatus"]=='1'){asyncstatus='Offline';}
-                    if(item["asyncstatus"]=='0'){asyncstatus='Online';}
+                    if(item["asyncStatus"]=='1'){asyncstatus='Offline';}
+                    if(item["asyncStatus"]=='0'){asyncstatus='Online';}
 
-                    if(item["appstatus"]=='0'){appstatus='App Cerrada';}
-                    if(item["appstatus"]=='1'){appstatus='App Abierta';}
+                    if(item["appStatus"]=='0'){appstatus='App Cerrada';}
+                    if(item["appStatus"]=='1'){appstatus='App Abierta';}
 
                     if(item["cambio_hora"]=='1'){cambio_hora='Hora actualizada';}
 
@@ -414,11 +420,11 @@
                     if(item["status_gps"]=='1'){status_gps='Gps Encendido';}
                     if(item["status_gps"]=='0'){status_gps='Gps Apagado';}
 
-                    if(item["appstatus"]==null && item["appnetcondata"]==null){appnetcondata='Sin Cobertura';}
-                    if(item["appstatus"]==null && item["appnetcondata"]=='1'){appnetcondata='Con conbertura';}
+                    if(item["appStatus"]==null && item["appNetConData"]==null){appnetcondata='Sin Cobertura';}
+                    if(item["appStatus"]==null && item["appNetConData"]=='1'){appnetcondata='Con conbertura';}
 
-                    if(item["appstatus"]==null && item["appnetconmbdata"]==null){appnetconmbdata='Sin Cobertura';}
-                    if(item["appstatus"]==null && item["appnetconmbdata"]=='1'){appnetconmbdata='Con cobertura';}
+                    if(item["appStatus"]==null && item["appNetCoNMbData"]==null){appnetconmbdata='Sin Cobertura';}
+                    if(item["appStatus"]==null && item["appNetCoNMbData"]=='1'){appnetconmbdata='Con cobertura';}
 
                     $("#tbOtros").append('<tr><td>'+(i++)+'</td>  <td>'+asyncstatus+'</td>   <td>'+appstatus+'</td> <td>'+cambio_hora+'</td> <td>'+zona_horaria+'</td> <td>'+status_gps+'</td> <td>'+appnetcondata+'</td> <td>'+appnetconmbdata+'</td> <td>'+item["dttimeupdate"]+'</td> <td>'+item["created_at"]+'</td></tr>');
                 });
@@ -486,7 +492,7 @@
             success: function (data) {
                 var i=1;
                 $.each(data['datos'], function (key, item) {
-                    $("#tbOtros").append('<tr><td>'+(i++)+'</td>  <td>'+item["imei"]+'</td> <td>'+item["asyncstatus"]+'</td>   <td>'+item["appstatus"]+'</td> <td>'+item["zona_horaria"]+'</td> <td>'+item["status_gps"]+'</td> <td>'+item["dttimeupdate"]+'</td> <td>'+item["created_at"]+'</td></tr>');
+                    $("#tbOtros").append('<tr><td>'+(i++)+'</td>  <td>'+item["imei"]+'</td> <td>'+item["asyncStatus"]+'</td>   <td>'+item["appStatus"]+'</td> <td>'+item["zona_horaria"]+'</td> <td>'+item["status_gps"]+'</td> <td>'+item["dttimeupdate"]+'</td> <td>'+item["created_at"]+'</td></tr>');
                 });
             }
         });

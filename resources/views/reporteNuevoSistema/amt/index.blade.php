@@ -26,9 +26,24 @@
                 }else{
                 }
                 checkin.hide();
-                $('#dpd2')[0].focus();
             }).data('datepicker');
-            var checkout = $('#dpd2').datepicker({
+
+
+            var checkin = $('#dpd2').datepicker({
+                onRender: function(date) {
+                    return date.valueOf() < now.valueOf() ? 'enabled' : '';
+                }
+            }).on('changeDate', function(ev){
+                if (ev.date.valueOf() > checkout.date.valueOf()) {
+                    var newDate = new Date(ev.date)
+                    newDate.setDate(newDate.getDate() + 1);
+                    checkout.setValue(newDate);
+                }else{
+                }
+                checkin.hide();
+                $('#dpd3')[0].focus();
+            }).data('datepicker');
+            var checkout = $('#dpd3').datepicker({
                 onRender: function(date) {
                 }
             }).on('changeDate', function(ev) {
@@ -45,6 +60,7 @@
             <ul class="nav nav-tabs">
                 <li class="active"><a href="#primer_reporte" data-toggle="tab" onclick="$('#reporte_nro').val(1);">REPORTE ATM HISTORIAL DE GESTIONES</a></li>
                 <li class="nav-item"><a href="#general_cuentas" data-toggle="tab" onclick="$('#reporte_nro').val(2);">GENERAL DE CUENTAS ATM</a></li>
+                <li class="nav-item"><a href="#reporte_marcaciones" data-toggle="tab" onclick="$('#reporte_nro').val(3);">REPORTE DE MARCACIONES</a></li>
                 <input type="hidden" id="reporte_nro" value="1">
             </ul>
         </div>
@@ -179,6 +195,78 @@
                                                         <span class="input-group-addon">
                                 <span class="glyphicon glyphicon"></span>
                                 </span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            </thead>
+                                            <tfoot>
+                                            <tr>
+                                                <th>
+                                                    <table class="table">
+                                                        <tr>
+                                                            <th>
+                                                                <div class="col-md-6 col-lg-3">
+                                                                    <button type="submit" class="btn btn-success" name="descargar" value="0"><span class="glyphicon glyphicon-download-alt"></span> Descargar</button>
+                                                                </div>
+                                                            </th>
+                                                        </tr>
+                                                    </table>
+                                                </th>
+                                            </tr>
+                                            </tfoot>
+                                        </table>
+
+                                    </div>
+                                </form>
+                                <nav class="navbar navbar-default">
+                                    <div class="container-fluid">
+                                        <div class="navbar-header">
+                                            <a class="navbar-brand" href="#" id="cuentas2" style="color: #000; margin-bottom: 15px"></a>
+                                            <div id="loader-icon2" style="display:none; color: green;padding-top: 5px" align="center">
+                                                <img src="{{asset('images/loading.gif')}}" width="70"><br>PROCESANDO . . .
+                                            </div>
+                                        </div>
+                                    </div>
+                                </nav>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="reporte_marcaciones">
+                            <div class="col-md-12 col-lg-12">
+                                <form role="search" action="reporteMarcacionesAtm" method="post">
+                                    {{ csrf_field() }}
+                                    <div class="well">
+                                        <table class="table">
+                                            <thead>
+                                            <tr>
+                                                <th>Marca:
+                                                    <div class='input-group date' id=''>
+                                                        <select class="form-control" title="SELECCIONE UNO" name="id_marca" id="id_marca" required readonly>
+                                                            <option value="13" selected>AUTORIDAD DE TRANSITO MUNICIPAL</option>
+                                                        </select>
+                                                        <span class="input-group-addon"></span>
+                                                    </div>
+                                                </th>
+                                            </tr>
+                                            <tr>
+                                                <th>
+                                                    <div class="col-md-2">
+                                                    Fecha inicio:
+                                                    <div class="input-group date" id="datetimepicker2">
+                                                        <input type="text" class="span2 form-control" value="{{isset($fecha_inicio) ? $fecha_inicio : date('d/m/Y')}}" id="dpd2" name="fecha_inicio_m" required="" readonly>
+                                                        <span class="input-group-addon">
+                                                <span class="glyphicon glyphicon-calendar"></span>
+                                            </span>
+                                                    </div>
+
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                    Fecha fin:
+                                                    <div class="input-group date" id="datetimepicker3">
+                                                        <input type="text" class="span2 form-control" value="{{isset($fecha_inicio) ? $fecha_inicio : date('d/m/Y')}}" id="dpd3" name="fecha_fin_m" required="" readonly>
+                                                        <span class="input-group-addon">
+                                                <span class="glyphicon glyphicon-calendar"></span>
+                                            </span>
+                                                    </div>
                                                     </div>
                                                 </th>
                                             </tr>

@@ -10,4 +10,9 @@ class tbl_executives extends Model
     protected $table = 'executives';
     protected $primaryKey='id';
     public $timestamps=true;
+
+    // Relación Users
+    public function usuario() {
+        return $this->hasOne('App\reportesNuevoSistema\tbl_users','id','user_id');
+    }
 }

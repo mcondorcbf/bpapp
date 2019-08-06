@@ -157,6 +157,7 @@ Route::get('/bmiActG', 'Bmi\BmiController@actualizaUltimaGestion');
 Route::get('/bmiActMG', 'Bmi\BmiController@actualizaMejorGestion');
 
 Route::get('/bmi', 'Bmi\BmiController@index');
+Route::get('/bmiIngresar', 'Bmi\BmiController@ingresar');
 Route::get('/busquedabmi', 'Bmi\BmiController@busquedaBmi');
 Route::get('/confirmacionCitaEmail', 'Bmi\BmiController@confirmacionCitaEmail');
 Route::post('/confirmacionCitaEmails', 'Bmi\BmiController@confirmacionCitaEmails');

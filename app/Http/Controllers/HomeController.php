@@ -299,12 +299,14 @@ class HomeController extends Controller
 
     public function enviados()
     {
+
         $user = Auth::user();
         if($user->role_id==3 || $user->role_id==7){
             $gestiones_d = gestiones::where('marca','DINERS CLUB')->
             where('id_formato',1)->
             where('consolidado',1)->
             whereBetween('id_estado_gestion', [2, 5])->orderBy('id', 'desc')->get();
+
 
             $gestiones_vr = gestiones::where('marca','VISA INTERDIN')->
             where('id_formato',2)->

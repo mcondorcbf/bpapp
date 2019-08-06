@@ -48,6 +48,7 @@ use Illuminate\Http\Response;
 use Exception;
 use DB;
 use PhpParser\Node\Expr\Cast\Array_;
+use TCG\Voyager\Facades\Voyager;
 
 class bmiController extends Controller
 {
@@ -66,6 +67,21 @@ class bmiController extends Controller
         }else{
             return view('Acceso no permitido');
         }
+    }
+
+    public function ingresar(){
+        $user=Auth::user();
+        if(Voyager::can('browse_supervisor_bmi')){
+
+                $citas=tbl_citas::get();
+                $citas_historial=tbl_citas_historial::where('created_at', '>=', date('Y-m-d').' 00:00:00')->get();
+
+                $citasPropiasHistorial=tbl_citas_propias_historial::where('created_at', '>=', date('Y-m-d').' 00:00:00')->where('estado',2)->where('estado_aprobado',3)->get();
+                $citasPropias=tbl_citas_propias::where('cita_propia',1)->get();
+
+            return view('bmi.bmiSupervisor', compact('citas', 'citasPropias','citas_historial','citasPropiasHistorial'));
+        }
+        return 'Usted no tiene acceso a este sistema';
     }
 
 
@@ -4909,4 +4925,4 @@ and pais='Peru'
 and fecha_cita='2018-03-30'
 and asesor.cedula_asesor=c.asesor
 ;
- * */
+ * */                                      

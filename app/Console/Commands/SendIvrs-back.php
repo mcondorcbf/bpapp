@@ -291,13 +291,14 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                     foreach ($carga as $key) {
                         $count++;
                         //$actualizar=carga::where('estado',0)->first();
-                        if ($canales->canales > 30) {
+                        /*if ($canales->canales > 30) {
                             //mayor a 30 canales envia cada segundo
                             sleep(1);
                         } else {
                             //menos a 30 canales envia cada 2 segundos
                             sleep(2);
-                        }
+                        }*/
+                        usleep(300000);
 
                         //$script=scripts::where('id_script',$key['id_script'])->first();
                         //echo $maximo." - ".$key->id." - ".$script->script." -- \n";
@@ -438,7 +439,7 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                     //Log::info("Envio un ivr de id_carga:".$idcarga);
                 }
             }
-            if ($canales->canales > 30) {
+            /*if ($canales->canales > 30) {
                 //mayor a 30 canales espera 5 segundos
                 echo "\nesperando 5 segundos\n";
                 sleep(5);
@@ -446,7 +447,8 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                 //menos a 30 canales espera 10 segundos
                 echo "\nesperando 10 segundos\n";
                 sleep(10);
-            }
+            }*/
+            sleep(1);
         }
     }
     //FIN CRON LLAMADAS IVR

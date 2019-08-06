@@ -30,8 +30,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('ivr:enviar')->everyMinute();
-        $schedule->command('predictivo:insistir')->everyMinute();
+        //$schedule->command('ivr:enviar')->everyMinute();
+        //$schedule->command('predictivo:insistir')->everyMinute();
         $schedule->command('indexar:gestiones')->everyTenMinutes();
     }
 

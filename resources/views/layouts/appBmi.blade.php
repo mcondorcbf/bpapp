@@ -354,10 +354,11 @@
                                     </li>
                                 </ul>
                             </li>
-                            @elseif(Role::where('id',Auth::user()->role_id)->first()->name=='bmisupervisor')
+                            @elseif(\Voyager::can('browse_supervisor_bmi'))
                             <li>
                                 <a href="{{url('home')}}" class="nav nav-tabs"><span class="glyphicon glyphicon-dashboard"></span> Inicio</a>
                             </li>
+
 
                             <li class="dropdown">
                                 <a href="#" class="dropdown-toggle nav nav-tabs" data-toggle="dropdown" role="button" aria-expanded="false">
@@ -469,6 +470,9 @@
                                 </a>
 
                                 <ul class="dropdown-menu" role="menu">
+                                    <li>
+                                        <a href="{{url('/home')}}" class="nav nav-tabs"><span class="glyphicon glyphicon-home"></span> Home</a>
+                                    </li>
                                     <li>
                                         <a href="{{ url('/cambiarP') }}"><span class="glyphicon glyphicon-new-window"></span>
                                             Cambiar contraseña

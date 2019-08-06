@@ -9,6 +9,9 @@ class tbl_asesores extends Model
     protected $connection = 'bmi';
     protected $table = 'asesores';
     protected $primaryKey='cedula_asesor';
+    protected $casts = [
+        'cedula_asesor' => 'string',
+    ];
     public $timestamps=true;
 
     // Relación Asesor

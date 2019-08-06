@@ -393,7 +393,7 @@
                 $.each(data['paradasReales'], function (key, item) {
                     if(item["direccion"]!=null){direccion=item["direccion"];}else{direccion='';}
 
-                    if (item["asyncStatus"]=='1'){
+                    if (item["asyncstatus"]=='1'){
                         $("#tbParadasReales").append('<tr><td>'+item["secuencia"]+'</td> <td> '+item["created_at"]+' </td>   <td> Dato Offline  </td> <td> Dato Offline </td> <td> Dato Offline </td> <td> '+direccion+' </td></tr>');
                     }else{
                         $("#tbParadasReales").append('<tr><td>'+item["secuencia"]+'</td>  <td>'+item["hora_inicio"]+'</td>   <td>'+item["hora_fin"]+'</td> <td>'+item["tiempo_parado"]+'</td> <td>'+item["distancia"]+'</td> <td>'+direccion+'</td></tr>');
@@ -407,8 +407,8 @@
                 $.each(data['datos'], function (key, item) {
                     var asyncstatus='';appstatus='';cambio_hora='';zona_horaria='';status_gps='';appnetcondata='';appnetconmbdata='';
 
-                    if(item["asyncStatus"]=='1'){asyncstatus='Offline';}
-                    if(item["asyncStatus"]=='0'){asyncstatus='Online';}
+                    if(item["asyncstatus"]=='1'){asyncstatus='Offline';}
+                    if(item["asyncstatus"]=='0'){asyncstatus='Online';}
 
                     if(item["appStatus"]=='0'){appstatus='App Cerrada';}
                     if(item["appStatus"]=='1'){appstatus='App Abierta';}
@@ -492,7 +492,7 @@
             success: function (data) {
                 var i=1;
                 $.each(data['datos'], function (key, item) {
-                    $("#tbOtros").append('<tr><td>'+(i++)+'</td>  <td>'+item["imei"]+'</td> <td>'+item["asyncStatus"]+'</td>   <td>'+item["appStatus"]+'</td> <td>'+item["zona_horaria"]+'</td> <td>'+item["status_gps"]+'</td> <td>'+item["dttimeupdate"]+'</td> <td>'+item["created_at"]+'</td></tr>');
+                    $("#tbOtros").append('<tr><td>'+(i++)+'</td>  <td>'+item["imei"]+'</td> <td>'+item["asyncstatus"]+'</td>   <td>'+item["appStatus"]+'</td> <td>'+item["zona_horaria"]+'</td> <td>'+item["status_gps"]+'</td> <td>'+item["dttimeupdate"]+'</td> <td>'+item["created_at"]+'</td></tr>');
                 });
             }
         });

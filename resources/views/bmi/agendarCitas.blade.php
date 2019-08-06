@@ -166,7 +166,7 @@
             <?php $i=1;$result='';?>@foreach($asesores as $k=>$v)
             <tr>
                 <td>{{$i}}</td>
-                <td><a href="{{ url('/agendarCitassBmi/'.$v->cedula_asesor) }}" class="modalButton btn btn-success btn-xs">{{$v->cedula_asesor}}</a></td>
+                <td><a href="{{ url('/agendarCitassBmi/'.$v->cedula_asesor) }}" class="modalButton btn btn-success btn-xs">{{$v['cedula_asesor']}}</a></td>
                 <td>{{$v->nombres}}</td>
                 <td>{{$v->celular}}</td>
                 <td>{{$v->email_personal}}</td>
@@ -216,7 +216,7 @@
                         <td>{{$k->hora_cita}}</td>
                         <td>{{$k->datos_adicionales}}</td>
                         <td>
-                            {{$k->ranking_cliente->descripcion}}
+                            {{isset($k->ranking_cliente->descripcion) ? $k->ranking_cliente->descripcion : ''}}
                         </td>
                     </tr>
                 @endforeach

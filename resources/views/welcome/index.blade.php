@@ -136,6 +136,10 @@
                 <a href="{{ url('/monitoreoCexRes') }}" type="button" class="btn btn-danger btn-lg btn-block"><strong><span class="glyphicon glyphicon-save-file"> </span> Monitoreo CEX</strong></a>
             @endif
 
+            @if(\Voyager::can('browse_supervisor_bmi'))
+                <a href="{{ url('/bmiIngresar') }}" type="button" class="btn btn-warning btn-lg btn-block"><strong><span class="glyphicon glyphicon-save-file"> </span> Sistema de Citas BMI</strong></a>
+            @endif
+
         </div>
     @else
         <div class="content">

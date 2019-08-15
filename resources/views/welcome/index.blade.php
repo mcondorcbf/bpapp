@@ -84,6 +84,7 @@
             @if(\Voyager::can('accede_bpapp_supervisor'))
                 <a href="{{ url('/inicio/6') }}" type="button" class="btn btn-primary btn-lg btn-block"><strong><span class="glyphicon glyphicon-th-list"> </span> Sistema de Refinanciamientos Diners Supervisor</strong></a>
             @endif
+
             @if(\Voyager::can('accede_bpapp_gestor'))
                 <a href="{{ url('/inicio/15') }}" type="button" class="btn btn-primary btn-lg btn-block"><strong><span class="glyphicon glyphicon-th-list"> </span> Sistema de Refinanciamientos Diners Gestor</strong></a>
             @endif
@@ -138,6 +139,10 @@
 
             @if(\Voyager::can('browse_supervisor_bmi'))
                 <a href="{{ url('/bmiIngresar') }}" type="button" class="btn btn-warning btn-lg btn-block"><strong><span class="glyphicon glyphicon-save-file"> </span> Sistema de Citas BMI</strong></a>
+            @endif
+
+            @if(\Voyager::can('browse_nomina'))
+                <a href="{{ url('/nominaIngresar') }}" type="button" class="btn btn-default btn-lg btn-block"><strong><span class="glyphicon glyphicon-save-file"> </span> NOMINA REPORTES </strong></a>
             @endif
 
         </div>

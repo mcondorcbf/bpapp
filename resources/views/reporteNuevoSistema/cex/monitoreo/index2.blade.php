@@ -138,18 +138,21 @@
                                     <?php $i=1;?>
                                     @foreach($dispositivos as $dispositivo)
                                         <tr>
-                                        <td>{{$i++}}</td>
-                                        <td>{{$dispositivo['cedula']}}</td>
-                                        <td>{{$dispositivo['imei']}}</td>
-                                        <td>{{$dispositivo['telefono']}}</td>
-                                        <td>{{$dispositivo['nombre']}}</td>
-                                        <td>{{$dispositivo['tiempo_parado']}}</td>
-                                        <td>{{$dispositivo['bateria_porcentaje']}}</td>
-                                        <td>{{$dispositivo['appStatus']}}</td>
-                                        <td>{{$dispositivo['status_gps']}}</td>
-                                        <td>{{$dispositivo['alerta_mensaje']}}</td>
-                                        <td><button class="modalButton btn btn-{{$dispositivo['alerta']}} btn-xs" id="button{{$dispositivo['id']}}" onclick="datos('{{$dispositivo['cedula']}}','{{isset($fecha_inicio) ? $fecha_inicio : date('d/m/Y')}}','{{$dispositivo['imei']}}')"><span class="glyphicon glyphicon-eye-open"> </span> Monitorear</button></td>
-                                        </td>
+                                            <td>{{$i++}}</td>
+                                            <td>{{$dispositivo['cedula']}}</td>
+                                            <td>{{$dispositivo['imei']}}</td>
+                                            <td>{{$dispositivo['telefono']}}</td>
+                                            <td>{{$dispositivo['nombre']}}</td>
+                                            <td>{{$dispositivo['tiempo_parado']}}</td>
+                                            <td>{{$dispositivo['bateria_porcentaje']}}</td>
+                                            <td>{{$dispositivo['appStatus']}}</td>
+                                            <td>{{$dispositivo['status_gps']}}</td>
+                                            <td>{{$dispositivo['alerta_mensaje']}}</td>
+                                            <td>
+                                                <button class="modalButton btn btn-{{$dispositivo['alerta']}} btn-xs" id="button{{$dispositivo['id']}}" onclick="datos('{{$dispositivo['cedula']}}','{{isset($fecha_inicio) ? $fecha_inicio : date('d/m/Y')}}','{{$dispositivo['imei']}}')">
+                                                    <span class="glyphicon glyphicon-eye-open"> </span> Monitorear
+                                                </button>
+                                            </td>
                                         </tr>
                                     @endforeach
                                     </tbody>
@@ -186,24 +189,7 @@
                                     </ul>
                                     <input type="hidden" name="dat" id="dat" value="">
                                     <div class="tab-content" id="myTabContent">
-                                        <div class="tab-pane fade active in" id="paradas" role="tabpanel" aria-labelledby="paradas-tab">
-                                            <table id="" class="table table-md table-bordered" style="font-size: 11px">
-                                                <thead class="alert alert-danger">
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Hora Inicio</th>
-                                                    <th>Hora Fin</th>
-                                                    <th>Tiempo parado</th>
-                                                    <th>Distancia (m)</th>
-                                                    <th><button onclick="geocodeLatLng();"><span class="glyphicon glyphicon-refresh"> </span> Refrescar direcciones</button></th>
-                                                </tr>
-                                                </thead>
-                                                <tbody id="tbParadas">
-
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div class="tab-pane fade" id="paradas_reales" role="tabpanel" aria-labelledby="paradas_reales-tab">
+                                        <div class="tab-pane fade active in" id="paradas_reales" role="tabpanel" aria-labelledby="paradas_reales-tab">
                                             <table id="" class="table table-bordered" style="font-size: 11px">
                                                 <thead class="alert alert-info">
                                                 <tr>
@@ -216,6 +202,23 @@
                                                 </tr>
                                                 </thead>
                                                 <tbody id="tbParadasReales">
+
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="tab-pane fade " id="paradas" role="tabpanel" aria-labelledby="paradas-tab">
+                                            <table id="" class="table table-md table-bordered" style="font-size: 11px">
+                                                <thead class="alert alert-danger">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Hora Inicio</th>
+                                                    <th>Hora Fin</th>
+                                                    <th>Tiempo parado</th>
+                                                    <th>Distancia (m)</th>
+                                                    <th><button onclick="geocodeLatLng();"><span class="glyphicon glyphicon-refresh"> </span> Refrescar direcciones</button></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="tbParadas">
 
                                                 </tbody>
                                             </table>

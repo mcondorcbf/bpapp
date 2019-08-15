@@ -383,6 +383,20 @@ return [
             'engine' => null,
         ],
 
+        'nomina' => [
+            'driver' => 'mysql',
+            'host' => env('NOMINA_HOST', '127.0.0.1'),
+            'port' => env('NOMINA_PORT', '3306'),
+            'database' => env('NOMINA_DATABASE', 'bddroles'),
+            'username' => env('NOMINA_USERNAME', 'root'),
+            'password' => env('NOMINA_PASSWORD', 'Cobefec*123'),
+            'charset' => 'utf8',
+            'collation' => 'utf8_unicode_ci',
+            'prefix' => '',
+            'strict' => false,
+            'engine' => null,
+        ],
+
         'cobefec3151' => [
             'driver' => 'mysql',
             'host' => env('COBEFEC3REPORTES_HOST', '172.16.5.151'),
@@ -396,6 +410,8 @@ return [
             'strict' => false,
             'engine' => null,
         ],
+
+
 
         'cobefec3Peru' => [
             'driver' => 'mysql',

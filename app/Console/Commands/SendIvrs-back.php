@@ -298,7 +298,7 @@ function enviarIvrs($id_carga,$id_carga_calendarizado,$finalizar,$pamiClientOpti
                             //menos a 30 canales envia cada 2 segundos
                             sleep(2);
                         }*/
-                        usleep(300000);
+                        usleep(200000);
 
                         //$script=scripts::where('id_script',$key['id_script'])->first();
                         //echo $maximo." - ".$key->id." - ".$script->script." -- \n";

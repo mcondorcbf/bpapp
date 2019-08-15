@@ -1218,7 +1218,7 @@ from cobefec_reportes.zonificacion_cex z
     {
         $configuracion=tbl_paradas_configuracion::where('estado',1)->first();
         $gestor=tbl_dispositivos::where('cedula',$cedula)->first();
-        $coords=tbl_api_cobefec::where('imei',$gestor->imei)->where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('latitud','<>','')->orderBy('secid')->get(['id','imei','secuencia','secid','latitud','longitud','tiempo_parado','distancia','bateria_porcentaje','update_time'])->toArray();
+        $coords=tbl_api_cobefec::where('imei',$gestor->imei)->where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->whereDate('update_time',$fecha)->where('latitud','<>','')->orderBy('update_time')->orderBy('secid')->get(['id','imei','secuencia','secid','latitud','longitud','tiempo_parado','distancia','bateria_porcentaje','update_time'])->toArray();
 
         $coordenadas=Array();
         foreach($coords as $coord){
@@ -1294,15 +1294,12 @@ from cobefec_reportes.zonificacion_cex z
             }
         }
 
-
-
         $apps=tbl_api_cobefec::whereDate('created_at',$fecha)->where('imei',$imei)->whereNotNull('extras')->orderBy('secuencia')->first(['extras']);
         if (isset($apps)){
             $apps=json_decode($apps['extras'],true);
         }else{
             $apps=Array();
-
-            }
+        }
 
         return view('reporteNuevoSistema/cex/monitoreo/dashboard',compact('paradas','datos','apps','paradasDirecciones','paradasReales'));
     }
@@ -1316,7 +1313,7 @@ from cobefec_reportes.zonificacion_cex z
             $paradas=Array();
         }
 
-        $paradasReales=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->whereDate('update_time',$fecha)->where('imei',$imei)->orderBy('update_time')->get()->toArray();
+        $paradasReales=tbl_api_cobefec::where('created_at','>',$fecha.' '.$configuracion->hora_inicio)->where('created_at','<',$fecha.' '.$configuracion->hora_fin)->where('update_time','>',$fecha.' '.$configuracion->hora_inicio)->where('imei',$imei)->orderBy('update_time')->get()->toArray();
         if(!isset($paradasReales)){
             $paradasReales=Array();
         }

@@ -424,3 +424,5 @@ Route::post('/guardaDireccionesCex', 'ReportesNuevoSistema\ReportesCexController
 Route::get('/nominaIngresar','NominaController@index');
 Route::post('/depurarNomina', 'NominaController@depurarNomina');
 Route::post('/nomina', 'NominaController@nomina');
+Route::get('/pdfNomina/{documento}/{token}', 'NominaController@pdf');
+Route::get('/procesarEmailNom', 'NominaController@procesarEmail');

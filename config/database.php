@@ -68,7 +68,7 @@ return [
 
         'ivrs' => [
             'driver' => 'mysql',
-            'host' => env('IVRS_HOST', '172.16.21.35'),
+            'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('IVRS_DATABASE', 'bddivrs'),
             'username' => env('IVRS_USERNAME', 'root'),
@@ -411,8 +411,6 @@ return [
             'engine' => null,
         ],
 
-
-
         'cobefec3Peru' => [
             'driver' => 'mysql',
             'host' => env('COBEFEC3PERU_HOST', '192.168.99.51'),
@@ -440,7 +438,7 @@ return [
             'port' => env('APIREST_PORT', '3306'),
             'database' => env('APIREST_DATABASE', 'bddapirest'),
             'username' => env('APIREST_USERNAME', 'root'),
-            'password' => env('APIREST_PASSWORD', 'C0b3f3c-'),
+            'password' => env('APIREST_PASSWORD', 'Cobefec*123'),
             'charset' => 'utf8',
             'collation' => 'utf8_unicode_ci',
             'prefix' => '',

@@ -1966,75 +1966,79 @@ function monitoreoCexOnline($fecha){
             if (count($imeis) > 0) {
                 foreach ($imeis as $imei) {
                     $distancia = distanceCalculation($ultima_referencia->latitud, $ultima_referencia->longitud, $imei['latitud'], $imei['longitud']);
+                    if(!is_nan($distancia)) {
 
-                    $api_cbc = tbl_api_cobefec::find($imei['id']);
-                    $api_cbc->distancia = $distancia;
-                    $api_cbc->save();
-
-                    $fecha1 = new \DateTime($ultima_referencia->update_time);//fecha inicial
-                    $fecha2 = new \DateTime($imei['update_time']);//fecha de cierre
-                    $intervalo = $fecha2->diff($fecha1);
-
-                    if ($distancia <= $configuracion->distancia) {
-                        $api = tbl_api_cobefec::find($imei['id']);
-                        $api->calculado = 1;
-                        $api->save();
-
-                        if ($intervalo->format('%H%i') > $configuracion->tiempo_parada) {
-                            //echo 'Lleva '.$created->diff($now)->i.' minutos parados. Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
-                            $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
-                            $dispositivos[$idispositivos]['alerta'] = 'alert alert-danger';
-
-                            $paradas_recorrido = new tbl_paradas_recorrido();
-                            $paradas_recorrido->id_api = $imei['id'];
-                            $paradas_recorrido->id_dispositivo = $dispositivo['id'];
-                            $paradas_recorrido->id_parada_configuracion = $configuracion->id;
-                            $paradas_recorrido->distancia = $distancia;
-                            $paradas_recorrido->hora = $imei['update_time'];
-                            $paradas_recorrido->tiempo_detenido = $intervalo->format('%i');
-                            $paradas_recorrido->hora_salida = '';
-                            $paradas_recorrido->tiempo_recorrido = '';
-                            $paradas_recorrido->kms = '';
-                            $paradas_recorrido->ciudad = '';
-                            $paradas_recorrido->direccion = '';
-                            $paradas_recorrido->save();
-
-                        } else {
-                            $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
-                            $dispositivos[$idispositivos]['alerta'] = '';
-                            //echo 'Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
-                        }
                         $api_cbc = tbl_api_cobefec::find($imei['id']);
-                        $api_cbc->hora_fin = $fecha2;
-                        $api_cbc->hora_inicio = $fecha1;
-                        $api_cbc->tiempo_parado = $intervalo->format('%H:%I:%S');
                         $api_cbc->distancia = $distancia;
                         $api_cbc->save();
-                        $idispositivos++;
-                    } else {
-                        $ultima_referencia->ultima_referencia = 0;
-                        $ultima_referencia->save();
 
-                        $api = tbl_api_cobefec::find($imei['id']);
-                        $api->calculado = 1;
-                        $api->referencia = 1;
-                        $api->hora_fin = $fecha2;
-                        $api->hora_inicio = $fecha1;
-                        $api->tiempo_parado = $intervalo->format('%H:%I:%S');
-                        $api->ultima_referencia = 1;
-                        $api->save();
-                        $ultima_referencia = tbl_api_cobefec::find($api->id);
+                        $fecha1 = new \DateTime($ultima_referencia->update_time);//fecha inicial
+                        $fecha2 = new \DateTime($imei['update_time']);//fecha de cierre
+                        $intervalo = $fecha2->diff($fecha1);
+
+                        if ($distancia <= $configuracion->distancia) {
+                            $api = tbl_api_cobefec::find($imei['id']);
+                            $api->calculado = 1;
+                            $api->save();
+
+                            if ($intervalo->format('%H%i') > $configuracion->tiempo_parada) {
+                                //echo 'Lleva '.$created->diff($now)->i.' minutos parados. Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
+                                $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
+                                $dispositivos[$idispositivos]['alerta'] = 'alert alert-danger';
+
+                                $paradas_recorrido = new tbl_paradas_recorrido();
+                                $paradas_recorrido->id_api = $imei['id'];
+                                $paradas_recorrido->id_dispositivo = $dispositivo['id'];
+                                $paradas_recorrido->id_parada_configuracion = $configuracion->id;
+                                $paradas_recorrido->distancia = $distancia;
+                                $paradas_recorrido->hora = $imei['update_time'];
+                                $paradas_recorrido->tiempo_detenido = $intervalo->format('%i');
+                                $paradas_recorrido->hora_salida = '';
+                                $paradas_recorrido->tiempo_recorrido = '';
+                                $paradas_recorrido->kms = '';
+                                $paradas_recorrido->ciudad = '';
+                                $paradas_recorrido->direccion = '';
+                                $paradas_recorrido->save();
+
+                            } else {
+                                $dispositivos[$idispositivos]['minutos_parado'] = $intervalo->format('%i');
+                                $dispositivos[$idispositivos]['alerta'] = '';
+                                //echo 'Distancia recorrida: '.$distancia.'m. Id de referencia: '.$ultima_referencia->id;
+                            }
+
+                            $api_cbc = tbl_api_cobefec::find($imei['id']);
+                            $api_cbc->hora_fin = $fecha2;
+                            $api_cbc->hora_inicio = $fecha1;
+                            $api_cbc->tiempo_parado = $intervalo->format('%H:%I:%S');
+                            $api_cbc->distancia = $distancia;
+                            $api_cbc->save();
+
+                            $idispositivos++;
+                        } else {
+                            $ultima_referencia->ultima_referencia = 0;
+                            $ultima_referencia->save();
+
+                            $api = tbl_api_cobefec::find($imei['id']);
+                            $api->calculado = 1;
+                            $api->referencia = 1;
+                            $api->hora_fin = $fecha2;
+                            $api->hora_inicio = $fecha1;
+                            $api->tiempo_parado = $intervalo->format('%H:%I:%S');
+                            $api->ultima_referencia = 1;
+                            $api->save();
+                            $ultima_referencia = tbl_api_cobefec::find($api->id);
+                        }
+                        /*$dispositivos[$idispositivos]['id_api']=$imei['id'];
+                        $dispositivos[$idispositivos]['id_dispositivo']=$dispositivo['id'];
+                        $dispositivos[$idispositivos]['id_parada_configuracion']=$configuracion->id;
+                        $dispositivos[$idispositivos]['hora']='';
+                        $dispositivos[$idispositivos]['tiempo_detenido']=$intervalo->format('%i');
+                        $dispositivos[$idispositivos]['hora_salida']='';
+                        $dispositivos[$idispositivos]['tiempo_recorrido']='';
+                        $dispositivos[$idispositivos]['kms']='';
+                        $dispositivos[$idispositivos]['ciudad']='';
+                        $dispositivos[$idispositivos]['direccion']='';*/
                     }
-                    /*$dispositivos[$idispositivos]['id_api']=$imei['id'];
-                    $dispositivos[$idispositivos]['id_dispositivo']=$dispositivo['id'];
-                    $dispositivos[$idispositivos]['id_parada_configuracion']=$configuracion->id;
-                    $dispositivos[$idispositivos]['hora']='';
-                    $dispositivos[$idispositivos]['tiempo_detenido']=$intervalo->format('%i');
-                    $dispositivos[$idispositivos]['hora_salida']='';
-                    $dispositivos[$idispositivos]['tiempo_recorrido']='';
-                    $dispositivos[$idispositivos]['kms']='';
-                    $dispositivos[$idispositivos]['ciudad']='';
-                    $dispositivos[$idispositivos]['direccion']='';*/
                 }
             }
         }

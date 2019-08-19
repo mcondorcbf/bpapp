@@ -28,7 +28,7 @@
                         <br>
                     </div>
                     <div class="col-lg-2 col-md-2">
-                        <div id="validar"><a  class="btn btn-info btn-sm" onclick="validacion()">Validar <span class="glyphicon glyphicon-ok"></span></a></div>
+                        <div id="validar"><a  class="btn btn-info btn-sm" onclick="validacion()">Validar <span class="glyphicon glyphicon-time"></span></a></div>
 
                     </div>
                 </div>
@@ -92,9 +92,11 @@ function validacion() {
                 $("#siguiente").attr('disabled', false);
                 $("#validar").css("color", "white");
                 $("#validar").html("");
-                $("#validar").append('<a  class="btn btn-info btn-sm" onclick="subir()">Siguiente <span class="glyphicon glyphicon-ok"></span></a>');
+                $("#validar").append('<a  class="btn btn-primary btn-sm" onclick="subir()">Siguiente <span class="glyphicon glyphicon-play"></span></a>');
             }
+
             $("#cargando").css("display", "none");
+            $('#resultado').append('<br>');
             $("#resultado").addClass('msg_notice');
             $("#resultado").fadeIn(1500);
 
@@ -148,8 +150,12 @@ function subir() {
             } else {
                 $("#resultado").css("color", "green");
                 $("#siguiente").attr('disabled', false);
+                $("#validar").css("color", "white");
+                $("#validar").html("");
+                $("#validar").append('<a  class="btn btn-success btn-sm" href="/procesarEmailNom">Procesar Envío <span class="glyphicon glyphicon-ok"></span></a>');
             }
             $("#cargando").css("display", "none");
+            $('#resultado').append('<br>');
             $("#resultado").addClass('msg_notice');
             $("#resultado").fadeIn(1500);
 

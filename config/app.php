@@ -186,6 +186,7 @@ return [
 
         \Enniel\Ami\Providers\AmiServiceProvider::class,
 
+        Barryvdh\DomPDF\ServiceProvider::class,
 
 
     ],
@@ -241,6 +242,8 @@ return [
 
         'Form' => Illuminate\Html\FormFacade::class,
         'Html' => Illuminate\Html\HtmlFacade::class,
+
+        'PDF' => Barryvdh\DomPDF\Facade::class,
 
     ],
 

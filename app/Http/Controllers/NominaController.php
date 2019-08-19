@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Mail\RolNomina;
 use App\nomina\cabecera;
 use App\nomina\detalle;
 use App\nomina\tipo;
@@ -8,11 +9,14 @@ use App\reportesNuevoSistema\tbl_campaigns;
 use App\reportesNuevoSistema\tbl_products;
 use App\Role;
 use App\User;
+use Barryvdh\DomPDF\Facade as PDF;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Input;
+use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 use DB;
 
@@ -114,6 +118,7 @@ class NominaController extends Controller
                     if(!isset($carga['cuenta'])){ $error.=' BC'; $errores++;}
                     if(!isset($carga['periodo_mes'])){ $error.=' BD'; $errores++;}
                     if(!isset($carga['periodo_anio'])){ $error.=' BE'; $errores++;}
+                    if(!isset($carga['periodo'])){ $error.=' BF'; $errores++;}
 
                     if($errores>0){
                         $result=500;
@@ -131,9 +136,6 @@ class NominaController extends Controller
                     return \Response::json($outa, $result);
                     dd();
                 }
-
-
-
 
             });//carga::all();
             //-> download('xls');
@@ -174,7 +176,8 @@ class NominaController extends Controller
 
             ini_set ( 'memory_limit' , '7000M' );
             ini_set('max_execution_time', 1200);
-            Excel::load($path, function($file) use (&$result, &$outa)
+            $count=0;
+            Excel::load($path, function($file) use (&$result, &$outa, &$count)
             {
                 $result='';
                 $errores=0;
@@ -182,422 +185,536 @@ class NominaController extends Controller
 
                 ini_set ( 'memory_limit' , '7000M' );
                 ini_set('max_execution_time', 1200);
+
                 foreach ($file->get() as $carga)
                 {
 
-                    $cabecera=new cabecera();
-                    $cabecera->tipo_documento=$carga->nombre_tipo_de_documento;
-                    $cabecera->documento=$carga->identificador;
-                    $cabecera->ciudad=$carga->ciudad;
-                    $cabecera->nombre_comercial=$carga->nombre_comercial;
-                    $cabecera->departamento=$carga->departamento;
-                    $cabecera->producto=$carga->producto;
-                    $cabecera->cargo=$carga->cargo;
-                    $cabecera->categoria_contable=$carga->categoria_contable;
-                    $cabecera->fecha_ingreso=$carga->fecha_de_ingreso;
-                    $cabecera->dias_trabajados=$carga->dias_trabajados;
-                    $cabecera->save();
+                    $cabecera=cabecera::where('documento',$carga->identificador)->first();
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','sueldo_nominal')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->sueldo_nominal;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                    if(isset($cabecera)){
+                        $tipo=detalle::where('id_cabecera',$cabecera->id_cabecera)->where('periodo_mes',$carga->periodo_mes)->where('periodo_anio',$carga->periodo_anio)->first();
+                    }else{
+                        $cabecera=new cabecera();
+                        $cabecera->tipo_documento=$carga->nombre_tipo_de_documento;
+                        $cabecera->documento=$carga->identificador;
+                        $cabecera->ciudad=$carga->ciudad;
+                        $cabecera->nombre_comercial=$carga->nombre_comercial;
+                        $cabecera->departamento=$carga->departamento;
+                        $cabecera->producto=$carga->producto;
+                        $cabecera->cargo=$carga->cargo;
+                        $cabecera->categoria_contable=$carga->categoria_contable;
+                        $cabecera->fecha_ingreso=$carga->fecha_de_ingreso;
+                        $cabecera->dias_trabajados=$carga->dias_trabajados;
+                        $cabecera->diferencia=$carga->diferencia;
+                        $cabecera->tipo_cuenta=$carga->tipo_cuenta;
+                        $cabecera->cuenta_bancaria=$carga->cuenta;
+                        $cabecera->save();
+                    }
+                    if(isset($tipo)==false) {
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','sueldo_mensual')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->sueldo_mensual;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->sueldo_nominal)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'sueldo_nominal')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->sueldo_nominal;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','valor_horas_suplementarias')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->valor_horas_suplementarias;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->sueldo_mensual)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'sueldo_mensual')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->sueldo_mensual;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','valor_horas_extrahordinarias')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->valor_horas_extrahordinarias;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->valor_horas_suplementarias)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'valor_horas_suplementarias')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->valor_horas_suplementarias;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','ajuste_comisiones')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->ajuste_comisiones;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->valor_horas_extrahordinarias)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'valor_horas_extrahordinarias')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->valor_horas_extrahordinarias;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','comisiones')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->comisiones;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->ajuste_comisiones)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'ajuste_comisiones')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->ajuste_comisiones;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','bonos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->bonos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->comisiones)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'comisiones')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->comisiones;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','movilizacion')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->movilizacion;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->bonos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'bonos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->bonos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','otros_ingresos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->otros_ingresos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->movilizacion)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'movilizacion')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->movilizacion;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','otros_ingresos_no')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->otros_ingresos_no;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->otros_ingresos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'otros_ingresos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->otros_ingresos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','decimo_cuarto_mensualizado_d')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->decimo_cuarto_mensualizado_d;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->otros_ingresos_no)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'otros_ingresos_no')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->otros_ingresos_no;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','decimo_tercero')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->decimo_tercero;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->decimo_cuarto_mensualizado_d)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'decimo_cuarto_mensualizado_d')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->decimo_cuarto_mensualizado_d;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','pago_fondos_de_reserva')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->pago_fondos_de_reserva;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->decimo_tercero)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'decimo_tercero')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->decimo_tercero;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','base_imponible')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->base_imponible;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->pago_fondos_de_reserva)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'pago_fondos_de_reserva')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->pago_fondos_de_reserva;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','total_ingresos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->total_ingresos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->base_imponible)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'base_imponible')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->base_imponible;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','aporte_personal')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->aporte_personal;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->total_ingresos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'total_ingresos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->total_ingresos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','impuesto_a_la_renta')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->impuesto_a_la_renta;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->aporte_personal)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'aporte_personal')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->aporte_personal;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','prestamos_quirografarios')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->prestamos_quirografarios;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->impuesto_a_la_renta)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'impuesto_a_la_renta')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->impuesto_a_la_renta;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','prestamos_hipotecarios')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->prestamos_hipotecarios;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->prestamos_quirografarios)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'prestamos_quirografarios')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->prestamos_quirografarios;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','anticipo_de_sueldo')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->anticipo_de_sueldo;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->prestamos_hipotecarios)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'prestamos_hipotecarios')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->prestamos_hipotecarios;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','prestamos_empresa')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->prestamos_empresa;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->anticipo_de_sueldo)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'anticipo_de_sueldo')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->anticipo_de_sueldo;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','prestamos_bgr')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->prestamos_bgr;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->prestamos_empresa)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'prestamos_empresa')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->prestamos_empresa;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
+                        if (!is_null($carga->prestamos_bgr)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'prestamos_bgr')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->prestamos_bgr;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','seguro_medico')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->seguro_medico;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->seguro_medico)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'seguro_medico')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->seguro_medico;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','comisiones_anticipadas')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->comisiones_anticipadas;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->comisiones_anticipadas)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'comisiones_anticipadas')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->comisiones_anticipadas;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','retencion_judicial')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->retencion_judicial;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->retencion_judicial)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'retencion_judicial')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->retencion_judicial;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','subsidio')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->subsidio;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->subsidio)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'subsidio')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->subsidio;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','subsidio_maternidad')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->subsidio_maternidad;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->subsidio_maternidad)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'subsidio_maternidad')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->subsidio_maternidad;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','viaticos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->viaticos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->viaticos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'viaticos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->viaticos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','extension_conyugal')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->extension_conyugal;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->extension_conyugal)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'extension_conyugal')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->extension_conyugal;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','plan_celular')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->plan_celular;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->plan_celular)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'plan_celular')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->plan_celular;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','roaming_celular')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->roaming_celular;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->roaming_celular)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'roaming_celular')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->roaming_celular;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','megas_adicionales')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->megas_adicionales;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->megas_adicionales)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'megas_adicionales')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->megas_adicionales;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','chip_celular')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->chip_celular;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->chip_celular)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'chip_celular')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->chip_celular;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','adendum_celular')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->adendum_celular;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->adendum_celular)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'adendum_celular')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->adendum_celular;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','gimnasio')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->gimnasio;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->gimnasio)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'gimnasio')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->gimnasio;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','atrasos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->atrasos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->atrasos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'atrasos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->atrasos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','llamados_de_atencion')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->llamados_de_atencion;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->llamados_de_atencion)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'llamados_de_atencion')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->llamados_de_atencion;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','descuento_dias_y_horas')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->descuento_dias_y_horas;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->descuento_dias_y_horas)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'descuento_dias_y_horas')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->descuento_dias_y_horas;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','otros_descuentos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->otros_descuentos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->otros_descuentos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'otros_descuentos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->otros_descuentos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','liquido_a_recibir')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->liquido_a_recibir;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->total_egresos)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'total_egresos')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->total_egresos;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','diferencia')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->diferencia;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        if (!is_null($carga->liquido_a_recibir)) {
+                            $detalle = new detalle();
+                            $valor = tipo::where('nombre', 'liquido_a_recibir')->first();
+                            $detalle->id_tipo = $valor->id_tipo;
+                            $detalle->valor = $carga->liquido_a_recibir;
+                            $detalle->periodo_mes = $carga->periodo_mes;
+                            $detalle->periodo_anio = $carga->periodo_anio;
+                            $detalle->periodo = $carga->periodo;
+                            $detalle->id_cabecera = $cabecera->id_cabecera;
+                            $detalle->save();
+                        }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','tipo_cuenta')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->tipo_cuenta;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
+                        $count++;
+                    }
 
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','cuenta')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->cuenta;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
-
-                    $detalle = new detalle();
-                    $valor=tipo::where('nombre','total_egresos')->first();
-                    $detalle->id_tipo=$valor->id_tipo;
-                    $detalle->valor=$carga->total_egresos;
-                    $detalle->periodo_mes=$carga->periodo_mes;
-                    $detalle->periodo_anio=$carga->periodo_anio;
-                    $detalle->id_cabecera=$cabecera->id_cabecera;
-                    $detalle->save();
                 }
-
             });
 
-            return \Response::json('Archivo subido exitosamente', 200);
+            $outa=  array (
+                0 => 'Archivo procesado exitosamente, no se encontraron errores: ',
+                1 => 'Se añadieron '.$count.' empleados'
+            );
+            return \Response::json($outa, 200);
             $data=Excel::load($path, function($reader){})->get();
 
             if(!empty($data) && $data->count()){
@@ -612,106 +729,33 @@ class NominaController extends Controller
         return view('ivr/cargaBase/nuevoIvr', compact('user'));
     }
 
-    public function reportes()
+    public function procesarEmail()
     {
-        $campanas=tbl_campaigns::where('product_id',24)->where('enabled',1)->whereNull('deleted_at')->orderBy('id','DESC')->pluck("name","id")->all();
-        return view('reporteNuevoSistema/amt/index', compact('campanas'));
+        $receivers = 'mcondor@cobefec.com';
+        try {
+            Mail::to($receivers)->send(new RolNomina());
+        }catch (\Exception $e){
+            return $e->getMessage();
+        }
+
+    }
+    public function pdf($documento)
+    {
+        //dd(generarCodigo(10));
+        $rol=cabecera::where('documento',$documento)->first();
+        $detalles=detalle::where('id_cabecera',$rol->id_cabecera)->get();
+        return view('nomina.pdfRoles', compact('rol','detalles'));
+
+        $pdf = PDF::loadView('nomina.pdfRoles', compact('rol','detalles'));
+        return $pdf->download('rol.pdf');
     }
 
-    public function reporteAmt(Request $request)
-    {
-        $fecha = Carbon::createFromFormat('d/m/Y', $request->fecha_inicio)->format('Ymd');
-        set_time_limit(0);
-        ini_set('memory_limit', '-1');
-        ini_set('max_execution_time',900);
-        try{
-            $reportes=DB::connection('cobefec3151')->select("call cobefec_reportes.sp_atm2('".$fecha."',$request->id_campana);");
-            $reportes=json_decode(json_encode($reportes), True);
-        }catch (\Exception $exception){
-            echo $exception->getMessage();
-        }
-            set_time_limit(0);
-            ini_set ( 'memory_limit','-1' );
-            ini_set('max_execution_time',900);
-        try{
-            \Excel::create('REPORTE HISTORIAL DE GESTIONES ATM COBEFEC '.date('d-m-Y'), function($excel) use (&$reportes){
-                $excel->sheet('REPORTE', function($sheet) use($reportes) {
-                    $sheet->loadView('reporteNuevoSistema/amt/tableAcumuladoGestiones')->with('reportes',$reportes);
-                    //$sheet->fromArray($reportes,null,'A1',true);
-                });
-            })->export('xlsx');
-        }catch (\Exception $exception){
-            echo $exception->getMessage();
-        }
-        return view('reporteNuevoSistema/amt/index');
-    }
+}
 
-    public function reporteMarcacionesAtm(Request $request)
-    {
-        $fecha_inicio = Carbon::createFromFormat('d/m/Y', $request->fecha_inicio_m)->format('Ymd');
-        $fecha_fin = Carbon::createFromFormat('d/m/Y', $request->fecha_fin_m)->format('Ymd');
-        set_time_limit(0);
-        ini_set('memory_limit', '-1');
-        ini_set('max_execution_time',900);
-        try{
-            $reportes=DB::connection('cobefec3')->select("
-select d.id, date(d.created_at) fecha, TIME(d.created_at) hora, d.document documento, a.data ->> '$.nombres_completos' nombres, d.phone telefono, d.contact_type tipo_contacto, d.type tipo, d.action accion, d.sub_action subaccion, if(d.type='MN',if(d.contact_type='NC','NO ANSWER','ANSWER'),'') estatus, d.reason motivo, d.description descripcion, d.extra ->> '$.pp_date'  fecha_pp, d.extra ->> '$.pp_amount' valor, c.name nombre_campana, a.data ->> '$.tipo_de_cartera' tipo_de_cartera, a.data ->> '$.saldo' saldos
-from cobefec3.demarches d, cobefec3.accounts a, cobefec3.campaigns c where account_id in (select id from cobefec3.accounts where campaign_id in (select id from cobefec3.campaigns where product_id in (select id from cobefec3.products where brand_id=13))) 
-and date(d.created_at) BETWEEN date('".$fecha_inicio."') and date('".$fecha_fin."') and a.id=d.account_id and a.campaign_id=c.id and d.validated=1 and d.action <> 'ENVIAR IVR'
-UNION ALL
-select d.id, date(d.created_at) fecha, TIME(d.created_at) hora, d.document documento, a.data ->> '$.nombres_completos' nombres, d.phone telefono, d.contact_type tipo_contacto, d.type tipo, d.action accion, d.sub_action subaccion, if(d.sub_action='CONTESTA IVR','ANSWER','NO ANSWER') estatus, d.reason motivo, d.description descripcion, d.extra ->> '$.pp_date'  fecha_pp, d.extra ->> '$.pp_amount' valor, c.name nombre_campana, a.data ->> '$.tipo_de_cartera' tipo_de_cartera, a.data ->> '$.saldo' saldos
-from cobefec3.demarches d, cobefec3.accounts a, cobefec3.campaigns c where 
-d.id in (
-select id_gestion_original from cobefec_reportes.atm_gestionivrs where id_carga in (SELECT id_carga FROM cobefec_reportes.atm_ivr_idcarga where date(fecha) BETWEEN date('".$fecha_inicio."') and date('".$fecha_fin."')) and id_gestion_original is not null
-) and a.id=d.account_id and a.campaign_id=c.id and d.validated=1;
-");
-
-            $reportes=json_decode(json_encode($reportes), true);
-        }catch (\Exception $exception){
-            echo $exception->getMessage();
-        }
-        set_time_limit(0);
-        ini_set ( 'memory_limit','-1' );
-        ini_set('max_execution_time',900);
-        try{
-            \Excel::create('REPORTE DE MARCACIONES ATM DESDE '.$fecha_inicio.' HASTA '.$fecha_fin, function($excel) use (&$reportes){
-                $excel->sheet('REPORTE', function($sheet) use($reportes) {
-                    //$sheet->loadView('reporteNuevoSistema/amt/tableAcumuladoGestiones')->with('reportes',$reportes);
-                    $sheet->fromArray($reportes,null,'A1',true);
-                });
-            })->export('xlsx');
-        }catch (\Exception $exception){
-            echo $exception->getMessage();
-        }
-        return view('reporteNuevoSistema/amt/index');
-    }
-
-    public function reporteGeneralCuentas(Request $request)
-    {
-        set_time_limit(0);
-        ini_set('memory_limit', '800M');
-        ini_set('max_execution_time',900);
-        try{
-            $reportes=DB::connection('cobefec3')->select("call cobefec_reportes.sp_atm_gral_cuentas(".$request->id_campana.");");
-
-            $reportes=json_decode(json_encode($reportes), True);
-        }catch (\Exception $exception){
-            echo $exception->getMessage();
-        }
-
-        set_time_limit(0);
-        ini_set ( 'memory_limit','-1' );
-        ini_set('max_execution_time',900);
-        try{
-            \Excel::create('REPORTE GENERAL DE CUENTAS AMT COBEFEC '.date('d-m-Y'), function($excel) use (&$reportes){
-                $excel->sheet('REPORTE', function($sheet) use($reportes) {
-                    $sheet->loadView('reporteNuevoSistema/amt/tableGeneralCuentas')->with('reportes',$reportes);
-                    //$sheet->fromArray($reportes,null,'A1',true);
-                });
-            })->export('xlsx');
-        }catch (\Exception $exception){
-            echo $exception->getMessage();
-        }
-        return view('reporteNuevoSistema/amt/index');
-    }
+function generarCodigo($longitud) {
+    $key = '';
+    $pattern = '1234567890abcdefghijklmnopqrstuvwxyz*/#.,';
+    $max = strlen($pattern)-1;
+    for($i=0;$i < $longitud;$i++) $key .= $pattern{mt_rand(0,$max)};
+    return $key;
 }

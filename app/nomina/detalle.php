@@ -10,4 +10,8 @@ class detalle extends Model
     protected $table = 'detalle';
     protected $primaryKey='id_detalle';
     public $timestamps=true;
+
+    public function tipo() {
+        return $this->hasOne('App\nomina\tipo','id_tipo','id_tipo');
+    }
 }
